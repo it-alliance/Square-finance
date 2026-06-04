@@ -1,26 +1,82 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Design System Palette — matched to Square Finance logo */
+  --color-primary: #2D2F52;     /* logo SF navy */
+  --color-secondary: #242644;   /* darker navy */
+  --color-accent: #1C1E38;      /* deepest navy */
+  --color-neutral: #8E8FA2;     /* muted gray */
+  --color-danger: #8F2535;      /* logo crimson red */
+  --color-danger-hover: #7A1F2D;
+
+  --color-success: #15803D;
+  --color-success-bg: #DCFCE7;
+
+  --color-warning: #B45309;
+  --color-warning-bg: #FEF3C7;
+
+  --color-info: #1D4ED8;
+  --color-info-bg: #DBEAFE;
+
+  --background: #F8FAFC;
+  --card-background: #FFFFFF;
+
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+
+  --border-color: #E5E7EB;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  /* Expose Custom Theme Classes */
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-neutral: var(--color-neutral);
+  --color-danger: var(--color-danger);
+  --color-danger-hover: var(--color-danger-hover);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+
+  --color-warning: var(--color-warning);
+  --color-warning-bg: var(--color-warning-bg);
+
+  --color-info: var(--color-info);
+  --color-info-bg: var(--color-info-bg);
+
+  --color-background-custom: var(--background);
+  --color-card-background: var(--card-background);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+
+  --color-border-custom: var(--border-color);
 }
 
 body {
   background: var(--background);
-  color: var(--foreground);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Global cursor pointer rules for all interactive elements */
+button,
+a,
+select,
+label,
+input[type="checkbox"],
+input[type="radio"],
+[role="button"] {
+  cursor: pointer;
+}
+
+button:disabled,
+a:disabled,
+input:disabled,
+select:disabled,
+[disabled],
+.cursor-not-allowed {
+  cursor: not-allowed !important;
+}
+
