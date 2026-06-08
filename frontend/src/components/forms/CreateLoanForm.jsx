@@ -123,13 +123,43 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
     setValue('totalPrincipalAmount', sum, { shouldValidate: true });
   }, [paymentsList, setValue]);
 
+  const dateLoanDisbursed = watch('dateLoanDisbursed');
+
+  const addMonths = (dateStr, months) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    date.setMonth(date.getMonth() + months);
+    return date.toISOString().split('T')[0];
+  };
+
+  // Auto-calculate EMI start and end dates
+  useEffect(() => {
+    if (dateLoanDisbursed) {
+      const startDate = addMonths(dateLoanDisbursed, 1);
+      setValue('emiStartDate', startDate, { shouldValidate: true });
+      if (tenure) {
+        const endDate = addMonths(startDate, tenure);
+        setValue('emiEndDate', endDate, { shouldValidate: true });
+      }
+    }
+  }, [dateLoanDisbursed, tenure, setValue]);
+
   // Auto-calculate EMI and other fields
   useEffect(() => {
     if (totalPrincipal && processingRate) {
       const fee = (totalPrincipal * processingRate) / 100;
       setProcessingFee(fee);
+      setValue('processingFeeAmount', parseFloat(fee.toFixed(2)), { shouldValidate: true });
     } else {
-      setProcessingFee(0);
+      const amount = watch('processingFeeAmount');
+      if (totalPrincipal && amount) {
+        const rate = (amount / totalPrincipal) * 100;
+        setValue('processingFeeRate', parseFloat(rate.toFixed(2)), { shouldValidate: true });
+        setProcessingFee(amount);
+      } else {
+        setProcessingFee(0);
+      }
     }
 
     if (totalPrincipal && tenure && interestRate) {
@@ -171,12 +201,52 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
     }
   };
 
-  const inputClasses = "w-full rounded-lg border border-border-custom bg-slate-50/50 px-4 py-2.5 text-text-primary placeholder-[#9CA3AF] focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm";
+  const inputClasses = "w-full h-[42px] rounded-lg border border-border-custom bg-slate-50/50 px-4 text-text-primary placeholder-[#9CA3AF] focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm";
+  const textareaClasses = "w-full rounded-lg border border-border-custom bg-slate-50/50 px-4 py-2.5 text-text-primary placeholder-[#9CA3AF] focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm resize-none";
   const labelClasses = "text-xs font-bold text-text-primary uppercase tracking-wider mb-1.5 block";
   const cardClasses = "rounded-2xl border border-border-custom bg-card-background p-6 shadow-sm shadow-black/5 hover:shadow-md transition-shadow duration-200";
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="pb-8">
+      {/* Live Estimate Horizontal Widget */}
+      <div className="mb-8 rounded-2xl border border-border-custom bg-white p-6 shadow-sm shadow-black/5 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="font-bold text-text-primary">Live Estimate</h3>
+            <p className="text-[10px] text-neutral">Real-time calculated values</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:flex md:items-center gap-6 md:gap-8 w-full md:w-auto text-sm">
+          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
+            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Monthly EMI</p>
+            <p className="font-extrabold text-primary text-xl">
+              {'₹' + monthlyEMI.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
+            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Principal Amount</p>
+            <p className="font-extrabold text-text-primary text-xl">
+              {'₹' + (totalPrincipal ? Number(totalPrincipal).toLocaleString('en-IN') : '0.00')}
+            </p>
+          </div>
+          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
+            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Interest</p>
+            <p className="font-extrabold text-text-primary text-xl">
+              {'₹' + totalInterest.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Processing Fees</p>
+            <p className="font-extrabold text-text-primary text-xl">
+              {'₹' + processingFee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Left Columns (Col Span 2) - Customer & Vehicle Details */}
         <div className="space-y-8 lg:col-span-2">
@@ -217,215 +287,201 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
             </div>
 
-            <div className="space-y-6">
-              {/* Loan Number & Customer Name */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className={labelClasses}>Loan Number *</label>
-                  <input
-                    type="text"
-                    {...register('loanNumber')}
-                    placeholder="LN001"
-                    readOnly={!!loan}
-                    className={`${inputClasses} ${loan ? 'bg-background-custom text-neutral cursor-not-allowed border-border-custom focus:ring-0 focus:border-border-custom' : ''}`}
-                  />
-                  {errors.loanNumber && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.loanNumber.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className={labelClasses}>Customer Name *</label>
-                  <input
-                    type="text"
-                    {...register('customerName')}
-                    placeholder="Enter customer name"
-                    className={inputClasses}
-                  />
-                  {errors.customerName && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.customerName.message}
-                    </span>
-                  )}
-                </div>
+            <div className="grid gap-x-4 gap-y-6 md:grid-cols-2">
+              {/* Row 1: Loan Number | Customer Name */}
+              <div>
+                <label className={labelClasses}>Loan Number *</label>
+                <input
+                  type="text"
+                  {...register('loanNumber')}
+                  placeholder="LN001"
+                  readOnly={!!loan}
+                  className={`${inputClasses} ${loan ? 'bg-background-custom text-neutral cursor-not-allowed border-border-custom focus:ring-0 focus:border-border-custom' : ''}`}
+                />
+                {errors.loanNumber && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.loanNumber.message}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className={labelClasses}>Customer Name *</label>
+                <input
+                  type="text"
+                  {...register('customerName')}
+                  placeholder="Enter customer name"
+                  className={inputClasses}
+                />
+                {errors.customerName && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.customerName.message}
+                  </span>
+                )}
               </div>
 
-              {/* PAN & Aadhar */}
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className={labelClasses}>PAN Number</label>
-                  <input
-                    type="text"
-                    {...register('panNumber')}
-                    placeholder="ABCDE1234F"
-                    className={inputClasses}
-                  />
-                  {errors.panNumber && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.panNumber.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className={labelClasses}>Aadhar Number</label>
-                  <input
-                    type="text"
-                    {...register('aadharNumber')}
-                    placeholder="123456789012"
-                    className={inputClasses}
-                  />
-                  {errors.aadharNumber && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.aadharNumber.message}
-                    </span>
-                  )}
-                </div>
+              {/* Row 2: PAN Number | Aadhar Number */}
+              <div>
+                <label className={labelClasses}>PAN Number</label>
+                <input
+                  type="text"
+                  {...register('panNumber')}
+                  placeholder="ABCDE1234F"
+                  className={inputClasses}
+                />
+                {errors.panNumber && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.panNumber.message}
+                  </span>
+                )}
+              </div>
+              <div>
+                <label className={labelClasses}>Aadhar Number</label>
+                <input
+                  type="text"
+                  {...register('aadharNumber')}
+                  placeholder="123456789012"
+                  className={inputClasses}
+                />
+                {errors.aadharNumber && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.aadharNumber.message}
+                  </span>
+                )}
               </div>
 
-              {/* Address & Ownership */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="md:col-span-2">
-                  <label className={labelClasses}>Current Address *</label>
-                  <input
-                    type="text"
-                    {...register('currentAddress')}
-                    placeholder="Enter full address"
-                    className={inputClasses}
-                  />
-                  {errors.currentAddress && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.currentAddress.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className={labelClasses}>Ownership Status</label>
-                  <select
-                    {...register('ownRent')}
-                    className={inputClasses}
-                  >
-                    <option value="Own">Own</option>
-                    <option value="Rent">Rent</option>
-                  </select>
-                </div>
+              {/* Row 3: Current Address (row-span-2) | Ownership Status */}
+              <div className="md:row-span-2">
+                <label className={labelClasses}>Current Address *</label>
+                <textarea
+                  {...register('currentAddress')}
+                  placeholder="Enter full address"
+                  className={`${textareaClasses} h-[110px]`}
+                />
+                {errors.currentAddress && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.currentAddress.message}
+                  </span>
+                )}
               </div>
 
-              {/* Guarantor Details */}
-              <div className="grid gap-4 md:grid-cols-2 pt-4 border-t border-border-custom">
-                <div>
-                  <label className={labelClasses}>Guarantor Name</label>
-                  <input
-                    type="text"
-                    {...register('guarantorName')}
-                    placeholder="Enter guarantor's full name"
-                    className={inputClasses}
-                  />
-                  {errors.guarantorName && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.guarantorName.message}
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className={labelClasses}>Guarantor Mobile Number</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
-                      <Phone className="h-4 w-4" />
-                    </span>
-                    <input
-                      type="text"
-                      {...register('primaryGuarantorMobile')}
-                      placeholder="9876543210"
-                      maxLength="10"
-                      className={`${inputClasses} pl-10`}
-                    />
-                  </div>
-                  {errors.primaryGuarantorMobile && (
-                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                      <AlertCircle className="h-3.5 w-3.5" />
-                      {errors.primaryGuarantorMobile.message}
-                    </span>
-                  )}
-                </div>
+              <div>
+                <label className={labelClasses}>Ownership Status</label>
+                <select {...register('ownRent')} className={inputClasses}>
+                  <option value="Own">Own</option>
+                  <option value="Rent">Rent</option>
+                </select>
               </div>
 
-              {/* Contact Numbers Section */}
-              <div className="grid gap-6 md:grid-cols-2 pt-4 border-t border-border-custom">
-                {/* Primary Contacts */}
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelClasses}>Primary Contact Number *</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
-                        <Phone className="h-4 w-4" />
-                      </span>
-                      <input
-                        type="text"
-                        {...register('primaryMobileNumber')}
-                        placeholder="9876543210"
-                        maxLength="10"
-                        className={`${inputClasses} pl-10`}
-                      />
-                    </div>
-                    {errors.primaryMobileNumber && (
-                      <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        {errors.primaryMobileNumber.message}
-                      </span>
-                    )}
-                  </div>
+              {/* Row 4: Mobile Numbers */}
+              <div className="space-y-3">
+                <label className={labelClasses}>Mobile Numbers *</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
+                    <Phone className="h-4 w-4" />
+                  </span>
+                  <input
+                    type="text"
+                    {...register('primaryMobileNumber')}
+                    placeholder="9876543210"
+                    maxLength="10"
+                    className={`${inputClasses} pl-10`}
+                  />
+                </div>
+                {errors.primaryMobileNumber && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.primaryMobileNumber.message}
+                  </span>
+                )}
 
-                  {/* Additional Mobile Numbers */}
-                  {mobileFields.length > 0 && (
-                    <div className="space-y-3">
-                      <label className={labelClasses}>Additional Contacts</label>
-                      {mobileFields.map((field, index) => (
-                        <div key={field.id} className="flex gap-2">
-                          <div className="relative flex-1">
-                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
-                              <Phone className="h-4 w-4" />
-                            </span>
-                            <input
-                              type="text"
-                              {...register(`mobileNumbers.${index}.number`)}
-                              placeholder="Enter mobile number"
-                              maxLength="10"
-                              className={`${inputClasses} pl-10`}
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeMobile(index)}
-                            className="rounded-lg bg-rose-50 p-2.5 text-rose-600 hover:bg-rose-100 transition-colors"
-                          >
-                            <X className="h-5 w-5" />
-                          </button>
+                {/* Extra Mobile Contacts */}
+                {mobileFields.length > 0 && (
+                  <div className="space-y-3 pt-1.5">
+                    <label className={labelClasses}>Extra Mobile Contacts</label>
+                    {mobileFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2">
+                        <div className="relative flex-1">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
+                            <Phone className="h-4 w-4" />
+                          </span>
+                          <input
+                            type="text"
+                            {...register(`mobileNumbers.${index}.number`)}
+                            placeholder="Enter mobile number"
+                            maxLength="10"
+                            className={`${inputClasses} pl-10`}
+                          />
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <button
+                          type="button"
+                          onClick={() => removeMobile(index)}
+                          className="rounded-lg bg-rose-50 px-3 text-rose-600 hover:bg-rose-100 transition-colors h-[42px] flex items-center justify-center cursor-pointer"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => appendMobile({ number: '' })}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-secondary uppercase transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Extra Contact
+                </button>
+              </div>
 
-                  <button
-                    type="button"
-                    onClick={() => appendMobile({ number: '' })}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-border-custom px-4 py-2.5 text-xs font-semibold text-text-secondary hover:border-primary hover:text-primary hover:bg-primary/5 transition-all w-full justify-center"
-                  >
-                    <Plus className="h-4 w-4" /> Add Extra Contact
-                  </button>
+              {/* Section Divider separating Customer and Guarantor Details */}
+              <div className="col-span-2 border-t border-border-custom my-2"></div>
+
+              {/* Row 5: Guarantor Name | Guarantor Mobile Numbers */}
+              <div>
+                <label className={labelClasses}>Guarantor Name</label>
+                <input
+                  type="text"
+                  {...register('guarantorName')}
+                  placeholder="Enter Guarantor Name"
+                  className={inputClasses}
+                />
+                {errors.guarantorName && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.guarantorName.message}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <label className={labelClasses}>Guarantor Mobile Numbers</label>
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
+                    <Phone className="h-4 w-4" />
+                  </span>
+                  <input
+                    type="text"
+                    {...register('primaryGuarantorMobile')}
+                    placeholder="Primary Guarantor Mobile"
+                    maxLength="10"
+                    className={`${inputClasses} pl-10`}
+                  />
                 </div>
+                {errors.primaryGuarantorMobile && (
+                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    {errors.primaryGuarantorMobile.message}
+                  </span>
+                )}
 
-                {/* Guarantor Contact Numbers */}
-                <div className="space-y-4">
-                  {/* Additional Guarantor Mobile Numbers */}
-                  <div className="space-y-3">
-                    <label className={labelClasses}>Additional Guarantor Contacts</label>
+                {/* Extra Guarantor Contacts */}
+                {guarantorFields.length > 0 && (
+                  <div className="space-y-3 pt-1.5">
+                    <label className={labelClasses}>Extra Guarantor Contacts</label>
                     {guarantorFields.map((field, index) => (
                       <div key={field.id} className="flex gap-2">
                         <div className="relative flex-1">
@@ -442,23 +498,22 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                         </div>
                         <button
                           type="button"
-                           onClick={() => removeGuarantor(index)}
-                          className="rounded-lg bg-danger/10 p-2.5 text-danger hover:bg-danger/20 transition-colors"
+                          onClick={() => removeGuarantor(index)}
+                          className="rounded-lg bg-danger/10 px-3 text-danger hover:bg-danger/20 transition-colors h-[42px] flex items-center justify-center cursor-pointer"
                         >
                           <X className="h-5 w-5" />
                         </button>
                       </div>
                     ))}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => appendGuarantor({ number: '' })}
-                    className="flex items-center gap-2 rounded-lg border border-dashed border-border-custom px-4 py-2.5 text-xs font-semibold text-text-secondary hover:border-primary hover:text-primary hover:bg-primary/5 transition-all w-full justify-center"
-                  >
-                    <Plus className="h-4 w-4" /> Add Extra Guarantor Contact
-                  </button>
-                </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => appendGuarantor({ number: '' })}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-secondary uppercase transition-colors"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Add Guarantor Contact
+                </button>
               </div>
             </div>
           </div>
@@ -476,17 +531,17 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
             </div>
 
             <div className="space-y-6">
-              {/* Registration & Serial Numbers */}
-              <div className="grid gap-4 md:grid-cols-3">
+              {/* Row 1: Vehicle Number | Chassis Number */}
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Vehicle Number *</label>
-                   <input
-                     type="text"
-                     {...register('vehicleNumber')}
-                     placeholder="DL-01-AB-1234"
-                     readOnly={!!loan}
-                     className={`${inputClasses} ${loan ? 'bg-background-custom text-neutral cursor-not-allowed border-border-custom focus:ring-0 focus:border-border-custom' : ''}`}
-                   />
+                  <input
+                    type="text"
+                    {...register('vehicleNumber')}
+                    placeholder="DL-01-AB-1234"
+                    readOnly={!!loan}
+                    className={`${inputClasses} ${loan ? 'bg-background-custom text-neutral cursor-not-allowed border-border-custom focus:ring-0 focus:border-border-custom' : ''}`}
+                  />
                   {errors.vehicleNumber && (
                     <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
                       <AlertCircle className="h-3.5 w-3.5" />
@@ -509,6 +564,10 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Row 2: Engine Number | Model Year */}
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Engine Number *</label>
                   <input
@@ -524,10 +583,6 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </span>
                   )}
                 </div>
-              </div>
-
-              {/* Type, Board & Model Year */}
-              <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <label className={labelClasses}>Model Year *</label>
                   <input
@@ -543,6 +598,10 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </span>
                   )}
                 </div>
+              </div>
+
+              {/* Row 3: Vehicle Type | Board Type */}
+              <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Vehicle Type</label>
                   <select
@@ -633,7 +692,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* HP Entry & RTO Status */}
-              <div className="grid gap-6 md:grid-cols-3 pt-4 border-t border-border-custom">
+              <div className="grid gap-6 md:grid-cols-2 pt-4 border-t border-border-custom">
                 <div>
                   <label className={labelClasses}>HP Entry</label>
                   <select
@@ -645,7 +704,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     <option value="Finished">Finished</option>
                   </select>
                 </div>
-                <div className="md:col-span-2">
+                <div>
                   <label className={labelClasses}>RTO Work Pending Checklist</label>
                   <div className="space-y-3">
                     {/* Custom Dropdown with built-in custom entry */}
@@ -772,51 +831,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
           </div>
         </div>
 
-        {/* Right Sidebar Columns (Col Span 1) - Loan Calculations & Settings */}
-        <div className="space-y-8 lg:col-span-1">
-          {/* Real-time Dynamic Summary Widget */}
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-secondary to-accent p-6 text-white shadow-xl shadow-slate-300/30">
-            {/* Ambient gradients */}
-            <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-white/5 blur-2xl"></div>
-            <div className="absolute -left-16 -bottom-16 h-36 w-36 rounded-full bg-white/10 blur-2xl"></div>
-
-            <div className="relative space-y-6">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-white bg-white/20 px-2 py-0.5 rounded-md border border-white/30 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Live Estimate
-                </span>
-                <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Calculated
-                </span>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/70">Monthly EMI (Calculated)</p>
-                <p className="mt-1 text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-200">
-                  {'₹' + monthlyEMI.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-
-              <div className="space-y-2.5 border-t border-white/20 pt-4 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-white/70">Principal Amount</span>
-                  <span className="font-semibold text-white">{'₹' + (totalPrincipal ? Number(totalPrincipal).toLocaleString('en-IN') : '0.00')}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/70">Interest Accrued</span>
-                  <span className="font-semibold text-white">{'₹' + totalInterest.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/70">Processing Fees</span>
-                  <span className="font-semibold text-white">{'₹' + processingFee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between border-t border-dashed border-white/20 pt-2.5 text-sm">
-                  <span className="text-white/80 font-medium">Total Repayable</span>
-                  <span className="font-bold text-white">{'₹' + (Number(totalPrincipal || 0) + totalInterest).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+         <div className="space-y-8 lg:col-span-1">
 
           {/* Loan Terms (monthly) Section */}
           <div className={cardClasses}>
@@ -846,21 +861,6 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 >
                   <CreditCard className="h-4 w-4" /> Update Payment
                 </button>
-                
-                {/* Applied Payments Summary */}
-                {(() => {
-                  const appliedPayments = watch('payments') || [];
-                  if (appliedPayments.length > 0) {
-                    const totalPaid = appliedPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-                    return (
-                      <div className="mt-2.5 bg-slate-50/50 rounded-lg p-2.5 border border-border-custom flex items-center justify-between text-xs">
-                        <span className="text-text-secondary font-medium">Applied Payments: <strong className="text-text-primary">{appliedPayments.length} record(s)</strong></span>
-                        <span className="font-semibold text-text-primary">{'Total: ₹' + totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
               </div>
 
               <div>
@@ -924,26 +924,74 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 )}
               </div>
 
-              <div>
-                <label className={labelClasses}>Processing Fee Rate (%) *</label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
-                    <Percent className="h-4 w-4" />
-                  </span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    {...register('processingFeeRate', { valueAsNumber: true })}
-                    placeholder="2.5"
-                    className={`${inputClasses} pl-10`}
-                  />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClasses}>Processing Fee Rate (%) *</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral">
+                      <Percent className="h-4 w-4" />
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register('processingFeeRate', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          const rate = parseFloat(e.target.value);
+                          if (!isNaN(rate) && totalPrincipal) {
+                            const amount = (totalPrincipal * rate) / 100;
+                            setValue('processingFeeAmount', parseFloat(amount.toFixed(2)), { shouldValidate: true });
+                            setProcessingFee(amount);
+                          } else if (e.target.value === '') {
+                            setValue('processingFeeAmount', '', { shouldValidate: true });
+                            setProcessingFee(0);
+                          }
+                        }
+                      })}
+                      placeholder="2.5"
+                      className={`${inputClasses} pl-10`}
+                    />
+                  </div>
+                  {errors.processingFeeRate && (
+                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {errors.processingFeeRate.message}
+                    </span>
+                  )}
                 </div>
-                {errors.processingFeeRate && (
-                  <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    {errors.processingFeeRate.message}
-                  </span>
-                )}
+
+                <div>
+                  <label className={labelClasses}>Processing Fee Amount (₹) *</label>
+                  <div className="relative">
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral text-sm font-semibold">₹</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      {...register('processingFeeAmount', {
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          const amount = parseFloat(e.target.value);
+                          if (!isNaN(amount) && totalPrincipal && totalPrincipal > 0) {
+                            const rate = (amount / totalPrincipal) * 100;
+                            setValue('processingFeeRate', parseFloat(rate.toFixed(2)), { shouldValidate: true });
+                            setProcessingFee(amount);
+                          } else if (e.target.value === '') {
+                            setValue('processingFeeRate', '', { shouldValidate: true });
+                            setProcessingFee(0);
+                          }
+                        }
+                      })}
+                      placeholder="100.00"
+                      className={`${inputClasses} pl-7`}
+                    />
+                  </div>
+                  {errors.processingFeeAmount && (
+                    <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      {errors.processingFeeAmount.message}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1034,8 +1082,8 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 <textarea
                   {...register('remarks')}
                   placeholder="Enter any additional remarks or notes..."
-                  rows="3"
-                  className={`${inputClasses} resize-none`}
+                  rows="5"
+                  className={textareaClasses}
                 />
               </div>
             </div>
@@ -1099,11 +1147,11 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </button>
                   )}
 
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3 grid-cols-2">
                     {/* Payment Date */}
                     <div>
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Payment Date</label>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Payment Date</span>
                         <button
                           type="button"
                           onClick={() => {
@@ -1111,7 +1159,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                             updated[index].date = '';
                             setTempPayments(updated);
                           }}
-                          className="text-[10px] font-semibold text-rose-500 hover:text-rose-600 transition-colors"
+                          className="text-[10px] font-semibold text-rose-500 hover:text-rose-600 transition-colors uppercase"
                         >
                           Clear
                         </button>
@@ -1127,7 +1175,9 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                         className="w-full rounded-lg border border-border-custom bg-white px-3 py-2 text-text-primary text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none"
                       />
                     </div>
+                  </div>
 
+                  <div className="grid gap-3 grid-cols-2">
                     {/* Mode */}
                     <div>
                       <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1 block">Mode</label>
@@ -1146,53 +1196,57 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                         <option value="UPI">UPI</option>
                       </select>
                     </div>
+
+                    {/* Amount */}
+                    <div>
+                      <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1 block">Amount</label>
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral text-xs font-semibold">₹</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={item.amount === 0 ? '' : item.amount}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            const updated = [...tempPayments];
+                            updated[index].amount = isNaN(val) ? 0 : val;
+                            setTempPayments(updated);
+                          }}
+                          placeholder="0.00"
+                          className="w-full rounded-lg border border-border-custom bg-white pl-6 pr-3 py-2 text-text-primary text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Amount */}
-                  <div>
-                    <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1 block">Amount</label>
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-neutral text-xs font-semibold">₹</span>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={item.amount === 0 ? '' : item.amount}
-                        onChange={(e) => {
-                          const val = parseFloat(e.target.value);
-                          const updated = [...tempPayments];
-                          updated[index].amount = isNaN(val) ? 0 : val;
-                          setTempPayments(updated);
-                        }}
-                        placeholder="0.00"
-                        className="w-full rounded-lg border border-border-custom bg-white pl-6 pr-3 py-2 text-text-primary text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all outline-none font-medium"
-                      />
-                    </div>
+                  {/* Add More button inside the card */}
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const localDate = new Date();
+                        const year = localDate.getFullYear();
+                        const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(localDate.getDate()).padStart(2, '0');
+                        const dateStr = `${year}-${month}-${day}`;
+                        setTempPayments([...tempPayments, { date: dateStr, mode: 'Cash', amount: 0 }]);
+                      }}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-secondary uppercase transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add More
+                    </button>
                   </div>
                 </div>
               ))}
 
-              {/* Add buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const localDate = new Date();
-                    const year = localDate.getFullYear();
-                    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(localDate.getDate()).padStart(2, '0');
-                    const dateStr = `${year}-${month}-${day}`;
-                    setTempPayments([...tempPayments, { date: dateStr, mode: 'Cash', amount: 0 }]);
-                  }}
-                  className="flex-1 py-2 border border-dashed border-indigo-200 rounded-lg text-xs font-semibold text-indigo-600 hover:bg-indigo-50/50 hover:border-indigo-300 transition-colors flex items-center justify-center gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add More
-                </button>
+              {/* Add New Date outside */}
+              <div className="pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setTempPayments([...tempPayments, { date: '', mode: 'Cash', amount: 0 }]);
                   }}
-                  className="flex-1 py-2 border border-dashed border-border-custom rounded-lg text-xs font-semibold text-text-secondary hover:bg-background-custom hover:border-primary/40 transition-colors flex items-center justify-center gap-1"
+                  className="w-full py-3 border border-dashed border-border-custom rounded-xl text-xs font-bold text-text-secondary hover:bg-background-custom hover:border-primary/40 transition-colors flex items-center justify-center gap-1.5 uppercase"
                 >
                   <Plus className="h-3.5 w-3.5" /> Add New Date
                 </button>
