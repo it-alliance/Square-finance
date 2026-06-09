@@ -8,7 +8,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+import monthlyLoanRoutes from './routes/monthlyLoan.routes';
+
 app.use('/api/auth', authRoutes);
+app.use('/api/monthly-loans', monthlyLoanRoutes);
 
 app.use(errorHandler);
 
