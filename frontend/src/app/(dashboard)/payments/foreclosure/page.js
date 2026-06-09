@@ -22,6 +22,7 @@ export default function ForeclosurePage() {
   const [odAmount, setOdAmount] = useState(0);
   const [miscellaneousFee, setMiscellaneousFee] = useState(0);
   const [remarks, setRemarks] = useState('');
+  const [paymentMode, setPaymentMode] = useState('Cash');
 
   // Calculations
   const [chargeAmount, setChargeAmount] = useState(0);
@@ -101,6 +102,7 @@ export default function ForeclosurePage() {
     setOdAmount(0);
     setMiscellaneousFee(0);
     setRemarks('');
+    setPaymentMode('Cash');
   };
 
   // Open Step 1 Preview Modal
@@ -111,9 +113,9 @@ export default function ForeclosurePage() {
     // Prefill date
     setPaymentDate(getTodayDateString());
     
-    // Set initial breakdown rows
+    // Set initial breakdown rows using selected paymentMode
     setBreakdownRows([
-      { id: Date.now(), mode: 'CASH', amount: totalPayAmount.toString() }
+      { id: Date.now(), mode: paymentMode, amount: totalPayAmount.toString() }
     ]);
     
     setActiveModal('preview');
@@ -133,9 +135,10 @@ export default function ForeclosurePage() {
     const difference = Math.max(0, totalPayAmount - receivedTotalSum);
     setBreakdownRows([
       ...breakdownRows,
-      { id: Date.now(), mode: 'ONLINE', amount: difference > 0 ? difference.toString() : '0' }
+      { id: Date.now(), mode: 'Online', amount: difference > 0 ? difference.toString() : '0' }
     ]);
   };
+
 
   // Delete payment mode row
   const handleRemoveMode = (id) => {
@@ -386,10 +389,11 @@ export default function ForeclosurePage() {
                         onChange={(e) => handleUpdateRow(row.id, 'mode', e.target.value)}
                         className="w-1/3 rounded-2xl border border-gray-200 bg-gray-50 px-3 py-3 text-xs font-bold text-slate-700 focus:bg-white focus:border-blue-600 focus:outline-none transition-all cursor-pointer"
                       >
-                        <option value="CASH">CASH</option>
-                        <option value="ONLINE">ONLINE</option>
-                        <option value="CHEQUE">CHEQUE</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Online">Online</option>
+                        <option value="Cheque">Cheque</option>
                       </select>
+
 
                       {/* Amount input */}
                       <div className="w-2/3 relative flex items-center">
@@ -628,9 +632,33 @@ export default function ForeclosurePage() {
                 />
               </div>
 
+              {/* ── Payment Mode Toggle Pills ── */}
+              <div>
+                <label className="block text-[10px] font-black uppercase tracking-widest text-text-secondary mb-2.5">
+                  Payment Mode
+                </label>
+                <div className="flex gap-2">
+                  {['Cash', 'Online', 'Cheque'].map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      disabled={!activeLoan}
+                      onClick={() => setPaymentMode(mode)}
+                      className={`flex-1 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider transition-all ${
+                        paymentMode === mode
+                          ? 'bg-primary border-primary text-white shadow-sm shadow-primary/30'
+                          : 'bg-white border-border-custom text-text-secondary hover:border-primary/40 hover:text-primary'
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Remarks Textarea */}
               <div>
-                <label className="block text-xs font-semibold text-text-primary mb-1">
+                <label className="block text-[10px] font-black uppercase tracking-widest text-text-secondary mb-1.5">
                   Remarks
                 </label>
                 <textarea
@@ -638,24 +666,21 @@ export default function ForeclosurePage() {
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="Add a remark for this foreclosure..."
-                  rows="2"
-                  className="w-full rounded-lg border border-border-custom bg-white px-3 py-2 text-xs text-text-primary placeholder-neutral focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  rows="3"
+                  className="w-full rounded-xl border border-border-custom bg-white px-3 py-2.5 text-xs text-text-primary placeholder-neutral focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20 disabled:bg-gray-50 disabled:cursor-not-allowed resize-none"
                 />
               </div>
 
-              {/* Total Pay Amount Summary Card */}
-              <div className="border-t border-border-custom pt-4 mt-2">
-                <div className="rounded-lg bg-gray-50 border border-border-custom p-3.5 flex justify-between items-center mb-4">
-                  <span className="text-xs font-bold text-text-primary">Total Pay Amount:</span>
-                  <span className="text-lg font-black text-primary">
-                    {formatCurrency(totalPayAmount)}
-                  </span>
+              {/* ── Dark Total + Pay Now bar ── */}
+              <div className="rounded-2xl bg-[#111827] flex items-center justify-between px-5 py-4 mt-2 shadow-lg">
+                <div>
+                  <span className="block text-[9px] font-bold uppercase tracking-widest text-gray-400">Total Pay Amount</span>
+                  <span className="text-xl font-black text-white mt-0.5 block">{formatCurrency(totalPayAmount)}</span>
                 </div>
-
                 <button
                   type="submit"
                   disabled={!activeLoan}
-                  className="w-full rounded-lg bg-primary hover:bg-secondary py-3 text-xs font-bold text-white transition-all shadow hover:shadow-md disabled:bg-gray-200 disabled:text-text-secondary disabled:cursor-not-allowed"
+                  className="rounded-full bg-primary hover:bg-secondary px-6 py-2.5 text-xs font-black text-white tracking-wider uppercase transition-all shadow-md shadow-primary/30 disabled:bg-gray-600 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none"
                 >
                   Pay Now
                 </button>

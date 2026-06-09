@@ -40,7 +40,7 @@ const updateAt = (arr, index, key, value) =>
 const removeAt = (arr, index) => arr.filter((_, i) => i !== index);
 
 /* ─── Payment Mode Options ─── */
-const PAYMENT_MODES = ['Cash', 'UPI', 'Online Transfer', 'Cheque'];
+const PAYMENT_MODES = ['Cash', 'Online', 'Cheque'];
 
 export default function EditLoanTemplate({ loanType, loanId }) {
   const loan = useMemo(() => mockLoans.find((l) => l.id === loanId), [loanId]);
