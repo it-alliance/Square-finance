@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm, useFieldArray } from 'react-hook-form';
+import { generateEmiSchedule } from '@/utils/generateEmiSchedule';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createLoanSchema } from '@/schemas/loanSchema';
 import { useState, useEffect, useRef } from 'react';

@@ -168,12 +168,17 @@ export default function Sidebar() {
             <div className="mb-4 flex items-center gap-3">
               <img
                 src={user.avatar}
-                alt={user.username}
+                alt={user.name || user.username || 'User'}
                 className="h-10 w-10 rounded-full"
               />
               <div className="flex-1 overflow-hidden">
-                <p className="truncate font-medium">{user.username}</p>
+                <p className="truncate font-medium">{user.name || user.username || 'User'}</p>
                 <p className="truncate text-xs text-white/70">{user.email}</p>
+                {user.role && (
+                  <span className="mt-1 inline-flex rounded-md bg-white/20 px-2 py-0.5 text-[9px] font-extrabold text-white uppercase tracking-wider">
+                    {user.role}
+                  </span>
+                )}
               </div>
             </div>
             <button

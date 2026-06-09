@@ -9,7 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 const loginSchema = z.object({
-  username: z.string().min(3, 'Username must be at least 3 characters'),
+  email: z.string().email('Please enter a valid email address'),
   password: z.string().min(4, 'Password must be at least 4 characters'),
   rememberMe: z.boolean().optional(),
 });
@@ -28,16 +28,16 @@ export default function LoginPage() {
   } = useForm({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: '',
+      email: '',
       password: '',
       rememberMe: false,
     },
   });
 
   const onSubmit = async (data) => {
-    const result = await login(data.username, data.password);
+    const result = await login(data.email, data.password);
     if (result.success) {
-      router.push('/monthly-loans');
+      router.push('/');
     }
   };
 
@@ -70,20 +70,20 @@ export default function LoginPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          {/* Username */}
+          {/* Email */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-text-primary">
-              Username
+            <label htmlFor="email" className="block text-sm font-medium text-text-primary">
+              Email Address
             </label>
             <input
-              id="username"
-              type="text"
-              {...register('username')}
-              placeholder="Enter your username"
+              id="email"
+              type="email"
+              {...register('email')}
+              placeholder="Enter your email"
               className="mt-1 w-full rounded-lg border border-border-custom bg-white px-4 py-2 text-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/20"
             />
-            {errors.username && (
-              <p className="mt-1 text-sm text-danger">{errors.username.message}</p>
+            {errors.email && (
+              <p className="mt-1 text-sm text-danger">{errors.email.message}</p>
             )}
           </div>
 
@@ -141,9 +141,6 @@ export default function LoginPage() {
             {isLoading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        {/* Demo Credentials */}
-        
       </div>
     </div>
   );

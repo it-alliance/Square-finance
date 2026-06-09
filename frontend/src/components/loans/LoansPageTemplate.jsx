@@ -87,7 +87,18 @@ export default function LoansPageTemplate({ loanType }) {
   };
 
   const columns = [
-    { key: 'loanNumber', label: 'Loan Number' },
+    {
+  key: 'loanNumber',
+  label: 'Loan Number',
+  render: (value, row) => (
+    <Link
+      href={`${routePrefix}/${row.id}`}
+      className="font-medium text-primary hover:text-secondary hover:underline"
+    >
+      {value}
+    </Link>
+  ),
+},
     { key: 'customerName', label: 'Customer Name' },
     { key: 'vehicleNumber', label: 'Vehicle Number' },
     { key: 'mobile', label: 'Mobile' },

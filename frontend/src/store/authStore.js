@@ -1,38 +1,38 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { apiClient } from '@/utils/apiClient';
 
 export const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       isAuthenticated: false,
       loading: false,
       error: null,
 
-      login: async (username, password) => {
+      login: async (email, password) => {
         set({ loading: true, error: null });
         try {
-          // Simulate API call
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-
-          if (!username || !password) {
-            throw new Error('Username and password are required');
+          if (!email || !password) {
+            throw new Error('Email and password are required');
           }
 
-          if (password.length < 4) {
-            throw new Error('Invalid credentials');
+          const response = await apiClient.post('/auth/login', { email, password });
+          
+          if (response.success && response.token) {
+            if (typeof window !== 'undefined') {
+              localStorage.setItem('token', response.token);
+              localStorage.setItem('user', JSON.stringify(response.user));
+            }
+            set({
+              user: response.user,
+              isAuthenticated: true,
+              loading: false,
+            });
+            return { success: true };
+          } else {
+            throw new Error(response.error || 'Login failed');
           }
-
-          const user = {
-            id: 1,
-            username,
-            email: `${username}@squarefinance.com`,
-            role: 'admin',
-            avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + username,
-          };
-
-          set({ user, isAuthenticated: true, loading: false });
-          return { success: true };
         } catch (error) {
           set({
             loading: false,
@@ -43,11 +43,41 @@ export const useAuthStore = create(
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false });
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        }
+        set({ user: null, isAuthenticated: false, error: null });
       },
 
       clearError: () => {
         set({ error: null });
+      },
+
+      initializeAuth: () => {
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('token');
+          const userStr = localStorage.getItem('user');
+          if (token && userStr) {
+            try {
+              const user = JSON.parse(userStr);
+              set({ user, isAuthenticated: true });
+            } catch (e) {
+              localStorage.removeItem('token');
+              localStorage.removeItem('user');
+            }
+          }
+        }
+      },
+
+      isSuperAdmin: () => {
+        const user = get().user;
+        return user?.role === 'SUPER_ADMIN' || user?.role === 'admin';
+      },
+
+      isEmployee: () => {
+        const user = get().user;
+        return user?.role === 'EMPLOYEE' || user?.role === 'employee';
       },
     }),
     {
