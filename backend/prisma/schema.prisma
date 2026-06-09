@@ -26,3 +26,98 @@ model User {
   role         RoleEnum
   createdAt    DateTime @default(now())
 }
+
+model Customer {
+  id                     String         @id @default(cuid())
+  name                   String
+  currentAddress         String
+  ownRent                String
+  panNumber              String?
+  aadharNumber           String?
+  primaryMobile          String
+  mobileNumbers          Json?
+  guarantorName          String?
+  primaryGuarantorMobile String?
+  guarantorMobileNumbers Json?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  
+  MonthlyLoans           MonthlyLoan[]
+
+  @@index([primaryMobile])
+}
+
+model MonthlyLoan {
+  id                     String    @id @default(cuid())
+  loanNumber             String    @unique
+  status                 String    @default("Active")
+  
+  // Relations
+  customerId             String
+  customer               Customer  @relation(fields: [customerId], references: [id])
+  
+  // Vehicle Information
+  vehicleNumber          String
+  chassisNumber          String
+  engineNumber           String
+  modelYear              Int
+  typeOfVehicle          String
+  boardType              String
+  dealerName             String?
+  dealerNumber           String?
+  fcDate                 DateTime?
+  insuranceDate          DateTime?
+  hpEntry                String
+  rtoPending             Json?
+
+  // Financial Terms
+  totalPrincipalAmount   Float
+  processingFeeRate      Float
+  processingFee          Float
+  tenure                 Int
+  interestRate           Float
+  monthlyEMI             Float
+  dateLoanDisbursed      DateTime
+  emiStartDate           DateTime
+  emiEndDate             DateTime
+  totalInterestAmount    Float
+  
+  // For Tracking & Workflow
+  nextFollowupDate       DateTime?
+  
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  payments               Payment[]
+  followUps              FollowUp[]
+
+  @@index([nextFollowupDate])
+  @@index([status])
+  @@index([loanNumber])
+  @@index([vehicleNumber])
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  loanType        String       // e.g., "Monthly"
+  amountPaid      Float
+  date            DateTime
+  paymentMode     String
+  
+  monthlyLoanId   String?
+  monthlyLoan     MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
+
+  createdAt       DateTime     @default(now())
+}
+
+model FollowUp {
+  id              String       @id @default(cuid())
+  loanType        String
+  promisedDate    DateTime
+  employeeComment String
+  
+  monthlyLoanId   String?
+  monthlyLoan     MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
+
+  createdAt       DateTime     @default(now())
+}

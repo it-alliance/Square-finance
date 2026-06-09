@@ -36,3 +36,7 @@ coverage/
 
 # Miscellaneous
 test.sh
+
+# Development and Local Tools
+*.postman_collection.json
+test-api.js
