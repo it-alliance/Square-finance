@@ -7,8 +7,16 @@ export const formatCurrency = (amount) => {
 };
 
 export const formatDate = (date) => {
-  return new Intl.DateTimeFormat('en-IN').format(new Date(date));
+  if (!date || date === '-') return '-';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    return new Intl.DateTimeFormat('en-IN').format(d);
+  } catch (e) {
+    return '-';
+  }
 };
+
 
 export const getStatusColor = (status) => {
   const statusMap = {

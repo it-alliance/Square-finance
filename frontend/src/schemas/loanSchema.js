@@ -31,7 +31,8 @@ export const createLoanSchema = z.object({
 
   // Section 3: Loan Terms
   totalPrincipalAmount: z.number().min(0, 'Principal amount must be at least 0'),
-  processingFeeRate: z.number().min(0).max(100, 'Processing fee rate must be between 0-100'),
+  processingFeeRate: z.number().min(0).max(100, 'Processing fee rate must be between 0-100').optional().or(z.literal('')),
+  processingFeeAmount: z.number().min(0).optional().or(z.literal('')),
   tenure: z.number().int().positive('Tenure must be positive'),
   interestRate: z.number().min(0).max(100, 'Interest rate must be between 0-100'),
 

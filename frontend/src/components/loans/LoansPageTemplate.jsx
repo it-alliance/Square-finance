@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import PageHeader from '@/components/common/PageHeader';
 import SearchInput from '@/components/common/SearchInput';
@@ -11,7 +11,7 @@ import TableFilters from '@/components/tables/TableFilters';
 import { mockLoans } from '@/mock/loans';
 import { formatCurrency, formatDate, searchFilter } from '@/utils/formatting';
 import { ITEMS_PER_PAGE, LOAN_STATUSES } from '@/utils/constants';
-import { Eye, Edit2, Plus, Trash2 } from 'lucide-react';
+import { Eye, Edit2, Plus, Trash2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { confirmToast } from '@/utils/toast-utils';
 
@@ -20,6 +20,19 @@ export default function LoansPageTemplate({ loanType }) {
   const [activeFilters, setActiveFilters] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedLoan, setSelectedLoan] = useState(null);
+  const [activeDropdownId, setActiveDropdownId] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(ITEMS_PER_PAGE);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (!e.target.closest('.actions-dropdown-container')) {
+        setActiveDropdownId(null);
+      }
+    };
+    document.addEventListener('click', handleOutsideClick);
+    return () => document.removeEventListener('click', handleOutsideClick);
+  }, []);
   
   // Filter mock loans for this specific page type
   const [loansList, setLoansList] = useState(() => 
@@ -51,10 +64,10 @@ export default function LoansPageTemplate({ loanType }) {
   };
 
   // Pagination
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const paginatedData = filteredData.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
   );
 
   const handleFilterChange = (key, value) => {
@@ -68,8 +81,24 @@ export default function LoansPageTemplate({ loanType }) {
     setCurrentPage(1);
   };
 
+  const handleRowsPerPageChange = (value) => {
+    setRowsPerPage(Number(value));
+    setCurrentPage(1);
+  };
+
   const columns = [
-    { key: 'loanNumber', label: 'Loan Number' },
+    {
+  key: 'loanNumber',
+  label: 'Loan Number',
+  render: (value, row) => (
+    <Link
+      href={`${routePrefix}/${row.id}`}
+      className="font-medium text-primary hover:text-secondary hover:underline"
+    >
+      {value}
+    </Link>
+  ),
+},
     { key: 'customerName', label: 'Customer Name' },
     { key: 'vehicleNumber', label: 'Vehicle Number' },
     { key: 'mobile', label: 'Mobile' },
@@ -93,31 +122,58 @@ export default function LoansPageTemplate({ loanType }) {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <div className="flex gap-2">
-          <Link
-            href={`${routePrefix}/${row.id}`}
-            className="rounded-lg bg-primary/10 p-2 text-primary hover:bg-primary/20 transition-colors"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-          <Link
-            href={`${routePrefix}/${row.id}/edit`}
-            className="rounded-lg bg-[var(--color-success-bg)] p-2 text-success hover:bg-success/20 transition-colors"
-            title="Edit"
-          >
-            <Edit2 className="h-4 w-4" />
-          </Link>
-          <button
-            onClick={() => handleDeleteLoan(row.id)}
-            className="rounded-lg bg-danger/10 p-2 text-danger hover:bg-danger/20 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      ),
+      render: (_, row) => {
+        const isOpen = activeDropdownId === row.id;
+        const index = paginatedData.findIndex((item) => item.id === row.id);
+        const openUpward = paginatedData.length > 2 && index >= paginatedData.length - 2;
+
+        return (
+          <div className="relative actions-dropdown-container">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setActiveDropdownId(isOpen ? null : row.id);
+              }}
+              className="rounded-lg p-1.5 text-text-secondary hover:bg-background-custom hover:text-text-primary transition-colors flex items-center justify-center border border-border-custom cursor-pointer"
+            >
+              <MoreVertical className="h-4.5 w-4.5" />
+            </button>
+
+            {isOpen && (
+              <div className={`absolute right-0 ${openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} w-40 rounded-xl border border-border-custom bg-white p-1.5 shadow-xl shadow-black/5 z-40`}>
+                <Link
+                  href={`${routePrefix}/${row.id}`}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-text-primary hover:bg-background-custom transition-colors"
+                >
+                  <Eye className="h-3.5 w-3.5 text-primary" />
+                  View Details
+                </Link>
+                <Link
+                  href={`${routePrefix}/${row.id}/edit`}
+                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-text-primary hover:bg-[var(--color-success-bg)] hover:text-success transition-colors"
+                >
+                  <Edit2 className="h-3.5 w-3.5 text-success" />
+                  Edit Loan
+                </Link>
+                <hr className="my-1 border-border-custom" />
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteLoan(row.id);
+                    setActiveDropdownId(null);
+                  }}
+                  className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                  Delete Loan
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
   ];
 
@@ -164,9 +220,23 @@ export default function LoansPageTemplate({ loanType }) {
             onClear={handleClearFilters}
           />
         </div>
-        <p className="text-sm text-gray-600">
-          Showing {paginatedData.length} of {filteredData.length} loans
-        </p>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-text-secondary font-medium">
+            Showing <strong>{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredData.length)}</strong> of <strong>{filteredData.length}</strong> loans
+          </span>
+          <div className="flex items-center gap-1.5">
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Rows:</label>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => handleRowsPerPageChange(e.target.value)}
+              className="rounded-lg border border-border-custom bg-background-custom px-2 py-1 text-xs font-semibold text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            >
+              {[5, 10, 25, 50].map((n) => (
+                <option key={n} value={n}>{n} / page</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Table */}
@@ -174,14 +244,14 @@ export default function LoansPageTemplate({ loanType }) {
         <DataTable columns={columns} data={paginatedData} />
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      {/* Pagination — always visible */}
+      <div className="mt-0 rounded-b-lg border border-t-0 border-border-custom bg-white">
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
         />
-      )}
+      </div>
 
       {/* Loan Detail Modal (fallback) */}
       {selectedLoan && (

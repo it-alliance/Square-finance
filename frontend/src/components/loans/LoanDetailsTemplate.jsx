@@ -7,8 +7,9 @@ import {
   ArrowLeft, User, Calendar, DollarSign, Phone, Car, MapPin,
   FileText, Shield, Hash, CreditCard, Clock, CheckCircle2, AlertTriangle, ChevronDown, Edit2
 } from 'lucide-react';
-import { mockLoans, mockEmiSchedule } from '@/mock/loans';
+import { mockLoans } from '@/mock/loans';
 import { formatCurrency, formatDate } from '@/utils/formatting';
+import { generateEmiSchedule } from '@/utils/generateEmiSchedule';
 import StatusBadge from '@/components/common/StatusBadge';
 
 const formatDateTime = (dateStr) => {
@@ -63,10 +64,16 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
   const routePrefix = `/${loanType.toLowerCase()}-loans`;
 
   // EMI schedule for this loan
-  let schedule = mockEmiSchedule.filter(s => s.loanId === loanId);
-  if (schedule.length === 0) {
-    schedule = mockEmiSchedule;
-  }
+  const schedule = useMemo(() => {
+    return generateEmiSchedule(
+      loan.loanAmount,
+      loan.tenure,
+      loan.emiStartDate,
+      loan.id,
+      loan.loanType || loanType,
+      loan.interestRate
+    );
+  }, [loan, loanType]);
 
   // Calculated values
   const processingFee = ((loan.processingFeeRate || 0) / 100) * (loan.loanAmount || 0);
@@ -450,36 +457,43 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
               {schedule.length > 0 ? (
                 schedule.map((item, index) => {
                   const isPaid = item.paymentStatus === 'Paid';
+                  const lastPayment = item.payments?.[item.payments.length - 1];
+                  const totalOverdue = item.overdues?.reduce((s, o) => s + Number(o.amount || 0), 0) ?? 0;
                   return (
                     <tr key={item.id} className="hover:bg-background-custom transition-colors duration-150">
                       <td className="whitespace-nowrap px-6 py-4 font-bold text-text-primary">{index + 1}</td>
                       <td className="whitespace-nowrap px-6 py-4 font-semibold text-text-secondary">{formatDate(item.dueDate)}</td>
                       <td className="whitespace-nowrap px-6 py-4 font-bold text-text-primary">{formatCurrency(item.emiAmount)}</td>
                       <td className={`whitespace-nowrap px-6 py-4 font-bold ${isPaid ? 'text-success' : 'text-text-secondary/50'}`}>
-                        {item.amountPaid > 0 ? formatCurrency(item.amountPaid) : '-'}
+                        {item.totalPaid > 0 ? formatCurrency(item.totalPaid) : '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-text-secondary">
-                        {item.paymentDate !== '-' ? formatDate(item.paymentDate) : '-'}
+                        {lastPayment?.paymentDate ? formatDate(lastPayment.paymentDate) : '-'}
+                        {item.payments?.length > 1 && (
+                          <span className="ml-1 text-[9px] text-primary font-bold">(+{item.payments.length - 1})</span>
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        {item.mode !== '-' ? (
+                        {lastPayment?.paymentMode ? (
                           <span className="inline-flex rounded-md bg-background-custom border border-border-custom px-2 py-0.5 text-[9px] font-extrabold text-text-secondary uppercase tracking-wider">
-                            {item.mode}
+                            {lastPayment.paymentMode}
                           </span>
                         ) : '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 font-bold text-danger">
-                        {item.overdue > 0 ? formatCurrency(item.overdue) : '-'}
+                        {totalOverdue > 0 ? formatCurrency(totalOverdue) : '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-extrabold tracking-wider uppercase shadow-3xs ${
-                          isPaid ? 'bg-[var(--color-success-bg)] text-success border border-[var(--color-success)]/10' : 'bg-[var(--color-warning-bg)] text-warning border border-[var(--color-warning)]/10'
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-[9px] font-extrabold tracking-wider uppercase shadow-3xs border ${
+                          item.paymentStatus === 'Paid' ? 'bg-[var(--color-success-bg)] text-success border border-[var(--color-success)]/10' :
+                          item.paymentStatus === 'Partial' ? 'bg-primary/10 text-primary border-primary/20' :
+                          'bg-[var(--color-warning-bg)] text-warning border border-[var(--color-warning)]/10'
                         }`}>
                           {item.paymentStatus}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-xs font-medium text-text-secondary max-w-[200px] truncate" title={item.remarks}>
-                        {item.remarks}
+                        {item.remarks || '-'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-xs font-bold text-text-primary">{item.approvedBy}</td>
                       <td className="whitespace-nowrap px-6 py-4 text-xs font-semibold text-text-secondary">
@@ -495,6 +509,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
                   </td>
                 </tr>
               )}
+
             </tbody>
           </table>
         </div>
