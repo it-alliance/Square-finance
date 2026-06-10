@@ -19,13 +19,13 @@ const formatLoanResponse = (loan: any) => ({
     principalAmount: loan.totalPrincipalAmount,
     processingFeeRate: loan.processingFeeRate,
     processingFee: loan.processingFee,
-    tenureMonths: loan.tenure,
-    tenureType: "Monthly",
+    tenureMonths: loan.tenure, // Note: tenure is weeks, but keeping key same as MonthlyLoan
+    tenureType: "Weekly",
     annualInterestRate: loan.interestRate,
     dateLoanDisbursed: loan.dateLoanDisbursed,
     emiStartDate: loan.emiStartDate,
     emiEndDate: loan.emiEndDate,
-    monthlyEMI: loan.monthlyEMI,
+    monthlyEMI: loan.weeklyEMI, // matching MonthlyLoan key exactly
     totalInterestAmount: loan.totalInterestAmount,
     paymentMode: "Cash",
     chequeNumber: "",
@@ -69,15 +69,16 @@ const formatLoanResponse = (loan: any) => ({
 });
 
 // Helper to calculate EMI
-const calculateEMI = (principal: number, annualInterestRate: number, tenureMonths: number): number => {
-  if (!principal || !annualInterestRate || !tenureMonths) return 0;
-  const monthlyRate = annualInterestRate / 100 / 12;
-  const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) /
-              (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+const calculateEMI = (principal: number, annualInterestRate: number, tenureWeeks: number): number => {
+  if (!principal || !annualInterestRate || !tenureWeeks) return 0;
+  // Convert annual rate to weekly rate
+  const weeklyRate = annualInterestRate / 100 / 52;
+  const emi = (principal * weeklyRate * Math.pow(1 + weeklyRate, tenureWeeks)) /
+              (Math.pow(1 + weeklyRate, tenureWeeks) - 1);
   return Number(emi.toFixed(2));
 };
 
-export const createMonthlyLoan = async (req: Request, res: Response): Promise<void> => {
+export const createWeeklyLoan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { customerDetails, loanTerms, vehicleInformation, status } = req.body;
 
@@ -86,8 +87,9 @@ export const createMonthlyLoan = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Check for Duplicate Loan Number
-    const existingLoan = await prisma.monthlyLoan.findUnique({
+    // Check for Duplicate Loan Number (including softly deleted ones if needed, though they usually shouldn't block, 
+    // but loanNumber is unique in schema)
+    const existingLoan = await prisma.weeklyLoan.findUnique({
       where: { loanNumber: loanTerms.loanNumber }
     });
 
@@ -99,13 +101,13 @@ export const createMonthlyLoan = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Recalculate EMI strictly on the backend to avoid frontend manipulation
+    // Recalculate EMI strictly on the backend
     const emi = calculateEMI(
       Number(loanTerms.principalAmount), 
       Number(loanTerms.annualInterestRate), 
-      Number(loanTerms.tenureMonths)
+      Number(loanTerms.tenureWeeks)
     );
-    const totalInterest = (emi * Number(loanTerms.tenureMonths)) - Number(loanTerms.principalAmount);
+    const totalInterest = (emi * Number(loanTerms.tenureWeeks)) - Number(loanTerms.principalAmount);
     
     // First create customer
     const customer = await prisma.customer.create({
@@ -124,13 +126,13 @@ export const createMonthlyLoan = async (req: Request, res: Response): Promise<vo
     });
 
     const initialPayments = loanTerms.disbursement ? loanTerms.disbursement.map((p: any) => ({
-      loanType: 'Monthly',
+      loanType: 'Weekly',
       amountPaid: Number(p.amount) || 0,
       date: new Date(p.date || new Date()),
       paymentMode: p.mode || loanTerms.paymentMode || 'Cash'
     })) : [];
 
-    const loan = await prisma.monthlyLoan.create({
+    const loan = await prisma.weeklyLoan.create({
       data: {
         customerId: customer.id,
         loanNumber: loanTerms.loanNumber,
@@ -151,9 +153,9 @@ export const createMonthlyLoan = async (req: Request, res: Response): Promise<vo
         totalPrincipalAmount: Number(loanTerms.principalAmount),
         processingFeeRate: Number(loanTerms.processingFeeRate),
         processingFee: Number(loanTerms.processingFee || 0),
-        tenure: Number(loanTerms.tenureMonths),
+        tenure: Number(loanTerms.tenureWeeks),
         interestRate: Number(loanTerms.annualInterestRate),
-        monthlyEMI: emi,
+        weeklyEMI: emi,
         dateLoanDisbursed: loanTerms?.dateLoanDisbursed ? new Date(loanTerms.dateLoanDisbursed) : new Date(),
         emiStartDate: loanTerms?.emiStartDate ? new Date(loanTerms.emiStartDate) : new Date(),
         emiEndDate: loanTerms?.emiEndDate ? new Date(loanTerms.emiEndDate) : new Date(),
@@ -174,31 +176,27 @@ export const createMonthlyLoan = async (req: Request, res: Response): Promise<vo
     if (status?.clientResponse && status?.nextFollowUpDate) {
       await prisma.followUp.create({
         data: {
-          loanType: 'Monthly',
-          monthlyLoanId: loan.id,
+          loanType: 'Weekly',
+          weeklyLoanId: loan.id,
           promisedDate: new Date(status.nextFollowUpDate),
           employeeComment: status.clientResponse
         }
       });
     }
 
-    res.status(201).json({ 
-      status: "success", 
-      message: "Monthly loan created successfully",
-      data: formatLoanResponse(loan) 
-    });
+    res.status(201).json({ status: "success", data: formatLoanResponse(loan) });
   } catch (error: any) {
-    console.error('Error creating monthly loan:', error);
+    console.error('Error creating weekly loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to create loan', data: error.message });
   }
 };
 
-export const updateMonthlyLoan = async (req: Request, res: Response): Promise<void> => {
+export const updateWeeklyLoan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { customerDetails, loanTerms, vehicleInformation, status } = req.body;
 
-    const existingLoan = await prisma.monthlyLoan.findUnique({
+    const existingLoan = await prisma.weeklyLoan.findUnique({
       where: { id },
       include: { customer: true }
     });
@@ -211,7 +209,7 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
     // Force recalculation if terms changed
     const principal = loanTerms?.principalAmount !== undefined ? Number(loanTerms.principalAmount) : existingLoan.totalPrincipalAmount;
     const interestRate = loanTerms?.annualInterestRate !== undefined ? Number(loanTerms.annualInterestRate) : existingLoan.interestRate;
-    const tenure = loanTerms?.tenureMonths !== undefined ? Number(loanTerms.tenureMonths) : existingLoan.tenure;
+    const tenure = loanTerms?.tenureWeeks !== undefined ? Number(loanTerms.tenureWeeks) : existingLoan.tenure;
     
     const emi = calculateEMI(principal, interestRate, tenure);
     const totalInterest = (emi * tenure) - principal;
@@ -235,7 +233,7 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
       });
     }
 
-    const updatedLoan = await prisma.monthlyLoan.update({
+    const updatedLoan = await prisma.weeklyLoan.update({
       where: { id },
       data: {
         status: status?.status ?? existingLoan.status,
@@ -257,7 +255,7 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
         processingFee: loanTerms?.processingFee ? Number(loanTerms.processingFee) : existingLoan.processingFee,
         tenure: tenure,
         interestRate: interestRate,
-        monthlyEMI: emi,
+        weeklyEMI: emi,
         dateLoanDisbursed: loanTerms?.dateLoanDisbursed ? new Date(loanTerms.dateLoanDisbursed) : existingLoan.dateLoanDisbursed,
         emiStartDate: loanTerms?.emiStartDate ? new Date(loanTerms.emiStartDate) : existingLoan.emiStartDate,
         emiEndDate: loanTerms?.emiEndDate ? new Date(loanTerms.emiEndDate) : existingLoan.emiEndDate,
@@ -271,29 +269,25 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
     if (status?.clientResponse && status?.nextFollowUpDate) {
       await prisma.followUp.create({
         data: {
-          loanType: 'Monthly',
-          monthlyLoanId: updatedLoan.id,
+          loanType: 'Weekly',
+          weeklyLoanId: updatedLoan.id,
           promisedDate: new Date(status.nextFollowUpDate),
           employeeComment: status.clientResponse
         }
       });
     }
 
-    res.status(200).json({ 
-      status: "success", 
-      message: "Monthly loan updated successfully",
-      data: formatLoanResponse(updatedLoan) 
-    });
+    res.status(200).json({ status: "success", data: formatLoanResponse(updatedLoan) });
   } catch (error: any) {
-    console.error('Error updating monthly loan:', error);
+    console.error('Error updating weekly loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to update loan', data: error.message });
   }
 };
 
-export const getMonthlyLoans = async (req: Request, res: Response): Promise<void> => {
+export const getWeeklyLoans = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
-      page = '1', 
+      cursor, 
       limit = '10',
       loanNumber,
       customerName,
@@ -303,9 +297,7 @@ export const getMonthlyLoans = async (req: Request, res: Response): Promise<void
       status
     } = req.query;
 
-    const pageNum = parseInt(page as string, 10);
     const take = parseInt(limit as string, 10);
-    const skip = (pageNum - 1) * take;
     
     // Base where clause to exclude deleted records
     const where: any = { isDeleted: false };
@@ -322,46 +314,49 @@ export const getMonthlyLoans = async (req: Request, res: Response): Promise<void
       if (mobileNumber) where.customer.primaryMobile = { startsWith: mobileNumber as string };
     }
 
-    const [totalItems, loans] = await Promise.all([
-      prisma.monthlyLoan.count({ where }),
-      prisma.monthlyLoan.findMany({
-        skip,
-        take,
-        where,
-        include: { customer: true },
-        orderBy: [
-          { createdAt: 'desc' },
-          { id: 'desc' }
-        ]
-      })
-    ]);
+    const queryOptions: any = {
+      take: take + 1, // Fetch one extra to determine if there's a next page
+      where,
+      include: {
+        customer: true
+      },
+      orderBy: [
+        { createdAt: 'desc' },
+        { id: 'desc' }
+      ]
+    };
+
+    if (cursor) {
+      queryOptions.cursor = { id: cursor as string };
+    }
+
+    const loans = await prisma.weeklyLoan.findMany(queryOptions);
+
+    let nextCursor: string | null = null;
+    if (loans.length > take) {
+      const nextItem = loans.pop(); // Remove the extra item
+      nextCursor = nextItem!.id;
+    }
 
     const formattedLoans = loans.map(formatLoanResponse);
-    const totalPages = Math.ceil(totalItems / take);
 
     res.status(200).json({
       status: "success",
-      message: "Monthly loans fetched successfully",
-      data: {
-        data: formattedLoans,
-        items: totalItems,
-        limit: take,
-        "current page": pageNum,
-        "total number of pages": totalPages
-      }
+      data: formattedLoans,
+      nextCursor
     });
 
   } catch (error: any) {
-    console.error('Error fetching monthly loans:', error);
+    console.error('Error fetching weekly loans:', error);
     res.status(500).json({ status: "error", message: 'Failed to fetch loans' });
   }
 };
 
-export const deleteMonthlyLoan = async (req: Request, res: Response): Promise<void> => {
+export const deleteWeeklyLoan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
-    const existingLoan = await prisma.monthlyLoan.findUnique({
+    const existingLoan = await prisma.weeklyLoan.findUnique({
       where: { id }
     });
 
@@ -371,19 +366,19 @@ export const deleteMonthlyLoan = async (req: Request, res: Response): Promise<vo
     }
 
     // Soft Delete Implementation
-    await prisma.monthlyLoan.update({
+    await prisma.weeklyLoan.update({
       where: { id },
       data: { isDeleted: true }
     });
 
     res.status(200).json({ status: "success", message: "Loan deleted successfully" });
   } catch (error: any) {
-    console.error('Error deleting monthly loan:', error);
+    console.error('Error deleting weekly loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to delete loan', data: error.message });
   }
 };
 
-export const exportMonthlyLoans = async (req: Request, res: Response): Promise<void> => {
+export const exportWeeklyLoans = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
       loanNumber,
@@ -397,6 +392,7 @@ export const exportMonthlyLoans = async (req: Request, res: Response): Promise<v
     } = req.query;
 
     const where: any = { isDeleted: false };
+    
     if (loanNumber) where.loanNumber = { startsWith: loanNumber as string, mode: 'insensitive' };
     if (status) where.status = status as string;
     if (vehicleNumber) where.vehicleNumber = { startsWith: vehicleNumber as string, mode: 'insensitive' };
@@ -415,7 +411,7 @@ export const exportMonthlyLoans = async (req: Request, res: Response): Promise<v
     }
 
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=monthly_loans.csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=weekly_loans.csv');
 
     const headers = ['Loan Number', 'Customer Name', 'Mobile', 'Vehicle Number', 'Status', 'Principal', 'EMI', 'Tenure', 'Created At'];
     res.write(headers.join(',') + '\n');
@@ -440,7 +436,7 @@ export const exportMonthlyLoans = async (req: Request, res: Response): Promise<v
         options.cursor = { id: cursor };
       }
 
-      const loansChunk = await prisma.monthlyLoan.findMany(options);
+      const loansChunk = await prisma.weeklyLoan.findMany(options);
 
       if (loansChunk.length === 0) {
         keepFetching = false;
@@ -455,7 +451,7 @@ export const exportMonthlyLoans = async (req: Request, res: Response): Promise<v
           `"${loan.vehicleNumber}"`,
           `"${loan.status}"`,
           loan.totalPrincipalAmount,
-          loan.monthlyEMI,
+          loan.weeklyEMI,
           loan.tenure,
           `"${loan.createdAt.toISOString()}"`
         ];

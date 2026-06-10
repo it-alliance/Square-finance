@@ -34,9 +34,14 @@ uploads/
 # Testing
 coverage/
 
-# Miscellaneous
-test.sh
-
 # Development and Local Tools
 *.postman_collection.json
 test-api.js
+test.sh
+test-daily.ts
+test-monthly.ts
+test-monthly-final.ts
+test-weekly.ts
+stress-test.ts
+update-postman.ts
+update-postman-auth.ts
