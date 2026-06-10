@@ -10,16 +10,16 @@ export default function DataTable({ columns, data, onRowClick }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="border-b border-gray-200 bg-gray-50">
+    <div className="rounded-lg bg-white shadow overflow-x-auto">
+      <table className="w-full text-sm border-collapse">
+        <thead className="border-b border-gray-100 bg-gray-50/60">
           <tr>
             {columns.map((column) => {
               const isSticky = column.key === 'loanNumber' || column.sticky;
               return (
                 <th
                   key={column.key}
-                  className={`px-6 py-3 text-left font-medium text-gray-700 whitespace-nowrap ${
+                  className={`px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#737373] whitespace-nowrap ${
                     isSticky ? 'sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                   }`}
                 >
@@ -29,12 +29,12 @@ export default function DataTable({ columns, data, onRowClick }) {
             })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-200">
+        <tbody className="divide-y divide-gray-50">
           {data.map((row, index) => (
             <tr
               key={row.id || index}
               className={`group transition-colors ${
-                onRowClick ? 'cursor-pointer hover:bg-gray-50' : 'hover:bg-gray-50/30'
+                onRowClick ? 'cursor-pointer hover:bg-gray-50/40' : 'hover:bg-gray-50/40'
               }`}
               onClick={() => onRowClick?.(row)}
             >
@@ -43,8 +43,8 @@ export default function DataTable({ columns, data, onRowClick }) {
                 return (
                   <td
                     key={column.key}
-                    className={`px-6 py-4 text-gray-900 whitespace-nowrap ${
-                      isSticky ? 'sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                    className={`px-5 py-4 whitespace-nowrap text-gray-800 ${
+                      isSticky ? 'sticky left-0 bg-white group-hover:bg-gray-50/40 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
                     }`}
                   >
                     {column.render
