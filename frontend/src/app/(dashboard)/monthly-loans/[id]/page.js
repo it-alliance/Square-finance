@@ -5,7 +5,7 @@ import LoanDetailsTemplate from '@/components/loans/LoanDetailsTemplate';
 
 export default function MonthlyLoanDetailsPage({ params }) {
   const resolvedParams = use(params);
-  const loanId = parseInt(resolvedParams.id, 10);
+  const loanId = resolvedParams.id;
 
   return <LoanDetailsTemplate loanType="Monthly" loanId={loanId} />;
 }

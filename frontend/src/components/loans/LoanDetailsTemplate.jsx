@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import {
   ArrowLeft, User, Calendar, DollarSign, Phone, Car, MapPin,
   FileText, Shield, Hash, CreditCard, Clock, CheckCircle2, AlertTriangle, ChevronDown, Edit2
 } from 'lucide-react';
-import { mockLoans } from '@/mock/loans';
 import { formatCurrency, formatDate } from '@/utils/formatting';
 import { generateEmiSchedule } from '@/utils/generateEmiSchedule';
 import StatusBadge from '@/components/common/StatusBadge';
+import { apiClient } from '@/utils/apiClient';
+import toast from 'react-hot-toast';
+import { mockMonthlyLoans } from '@/mock/monthlyLoans';
 
 const formatDateTime = (dateStr) => {
   if (!dateStr) return 'N/A';
@@ -54,18 +55,86 @@ const SectionCard = ({ title, subtitle, icon: Icon, iconBg, iconColor, children,
   </div>
 );
 
-export default function LoanDetailsTemplate({ loanType, loanId }) {
-  const loan = useMemo(() => mockLoans.find((l) => l.id === loanId), [loanId]);
+/* ── Map raw API loan object → UI shape ───────────────────── */
+const mapLoanData = (d) => {
+  if (!d) return null;
+  return {
+    id: d.id,
+    loanType: d.loanType || 'Monthly',
+    loanNumber: d.loanNumber,
+    status: d.status,
+    createdAt: d.createdAt,
+    dateLoanDisbursed: d.dateLoanDisbursed,
+    emiStartDate: d.emiStartDate,
+    emiEndDate: d.emiEndDate,
+    loanAmount: d.totalPrincipalAmount ?? d.loanAmount,
+    interestRate: d.interestRate,
+    tenure: d.tenure,
+    processingFeeRate: d.processingFeeRate,
+    emiAmount: d.monthlyEMI ?? d.emiAmount,
+    dueDate: d.emiStartDate ?? d.dueDate,
+    payments: d.payments || [],
 
-  if (!loan) {
-    notFound();
-  }
+    // Support both API nested (d.customer.name) and flat mock (d.customerName)
+    customerName: d.customer?.name ?? d.customerName,
+    panNumber: d.customer?.panNumber ?? d.panNumber,
+    aadharNumber: d.customer?.aadharNumber ?? d.aadharNumber,
+    ownRent: d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
+    mobile: d.customer?.primaryMobile ?? d.mobile,
+    mobileNumbers: d.customer?.mobileNumbers?.map?.(n =>
+      typeof n === 'string' ? { number: n } : n
+    ) ?? d.mobileNumbers ?? [],
+    customerAddress: d.customer?.currentAddress ?? d.currentAddress ?? d.customerAddress,
+    customerPincode: d.customer?.pincode ?? d.customerPincode,
+
+    guarantorName: d.customer?.guarantorName ?? d.guarantorName,
+    guarantorAadhar: d.customer?.guarantorAadhar ?? d.guarantorAadhar,
+    primaryGuarantorMobile: d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
+    guarantorMobileNumbers: d.customer?.guarantorMobileNumbers?.map?.(n =>
+      typeof n === 'string' ? { number: n } : n
+    ) ?? d.guarantorMobileNumbers ?? [],
+    guarantorAddress: d.customer?.guarantorAddress ?? d.guarantorAddress,
+    guarantorPincode: d.customer?.guarantorPincode ?? d.guarantorPincode,
+
+    vehicleNumber: d.vehicleNumber,
+    makeModel: d.typeOfVehicle || d.makeModel,
+    modelYear: d.modelYear,
+    chassisNumber: d.chassisNumber,
+    engineNumber: d.engineNumber,
+    typeOfVehicle: d.typeOfVehicle,
+    boardType: d.boardType,
+    hpEntry: d.hpEntry,
+    rtoPending: d.rtoPending || [],
+    dealerName: d.dealerName,
+    dealerNumber: d.dealerNumber,
+    fcDate: d.fcDate,
+    insuranceDate: d.insuranceDate,
+
+    remarks: d.followUps?.[0]?.employeeComment || d.remarks || '',
+    followUpDate: d.followUps?.[0]?.promisedDate || d.followUpDate || null,
+    createdBy: d.createdBy || 'System Admin',
+  };
+};
+
+export default function LoanDetailsTemplate({ loanType, loanId }) {
+  /* ── State ── */
+  const [loan, setLoan] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchMode, setSearchMode] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
   const routePrefix = `/${loanType.toLowerCase()}-loans`;
 
-  // EMI schedule for this loan
+  /* ── ALL hooks must live above any conditional return ── */
+
+  // EMI schedule — computed even when loan is null (returns [])
   const schedule = useMemo(() => {
-    return generateEmiSchedule(
+    if (!loan) return [];
+
+    const baseSchedule = generateEmiSchedule(
       loan.loanAmount,
       loan.tenure,
       loan.emiStartDate,
@@ -73,29 +142,266 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
       loan.loanType || loanType,
       loan.interestRate
     );
+
+    // Merge actual payments recorded in the DB
+    if (loan.payments && loan.payments.length > 0) {
+      const paymentsCopy = loan.payments
+        .map(p => ({
+          amountPaid: Number(p.amountPaid || p.amount || 0),
+          date: p.date || p.paymentDate,
+          paymentMode: p.paymentMode || p.mode || 'Cash',
+        }))
+        .filter(p => p.amountPaid > 0);
+
+      let paymentIndex = 0;
+      return baseSchedule.map(emi => {
+        let remaining = emi.emiAmount;
+        const emiPayments = [];
+
+        while (paymentIndex < paymentsCopy.length && remaining > 0) {
+          const p = paymentsCopy[paymentIndex];
+          const used = Math.min(remaining, p.amountPaid);
+          emiPayments.push({ paymentDate: p.date, paymentMode: p.paymentMode, amount: used });
+          remaining -= used;
+          p.amountPaid -= used;
+          if (p.amountPaid <= 0) paymentIndex++;
+        }
+
+        const totalPaid = emiPayments.reduce((s, p) => s + p.amount, 0);
+        const paymentStatus =
+          totalPaid >= emi.emiAmount ? 'Paid' : totalPaid > 0 ? 'Partial' : 'Pending';
+
+        return {
+          ...emi,
+          payments: emiPayments,
+          totalPaid,
+          remainingAmount: Math.max(0, emi.emiAmount - totalPaid),
+          paymentStatus,
+          approvedBy: 'System Admin',
+          lastUpdated: emiPayments.length > 0 ? emiPayments[emiPayments.length - 1].paymentDate : '-',
+        };
+      });
+    }
+
+    return baseSchedule;
   }, [loan, loanType]);
 
-  // Calculated values
-  const processingFee = ((loan.processingFeeRate || 0) / 100) * (loan.loanAmount || 0);
-  const monthlyRate = (loan.interestRate || 0) / 100 / 12;
-  const calculatedEMI = monthlyRate > 0 && loan.tenure > 0
-    ? (loan.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, loan.tenure)) /
-      (Math.pow(1 + monthlyRate, loan.tenure) - 1)
-    : 0;
-  const totalRepayable = calculatedEMI * (loan.tenure || 0);
-  const totalInterest = totalRepayable - (loan.loanAmount || 0);
+  // Derived financial values (null-safe)
+  const processingFee = ((loan?.processingFeeRate || 0) / 100) * (loan?.loanAmount || 0);
+  const monthlyRate = (loan?.interestRate || 0) / 100 / 12;
+  const calculatedEMI =
+    monthlyRate > 0 && (loan?.tenure || 0) > 0
+      ? (loan.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, loan.tenure)) /
+        (Math.pow(1 + monthlyRate, loan.tenure) - 1)
+      : 0;
+  const totalRepayable = calculatedEMI * (loan?.tenure || 0);
+  const totalInterest = totalRepayable - (loan?.loanAmount || 0);
 
-  // Collect all mobile numbers
-  const allMobiles = [
-    loan.mobile,
-    ...(loan.mobileNumbers || []).map(m => m.number).filter(n => n !== loan.mobile)
-  ].filter(Boolean);
+  // Mobile collections (null-safe)
+  const allMobiles = loan
+    ? [loan.mobile, ...(loan.mobileNumbers || []).map(m => m.number).filter(n => n !== loan.mobile)].filter(Boolean)
+    : [];
+  const allGuarantorMobiles = loan
+    ? [
+        loan.primaryGuarantorMobile,
+        ...(loan.guarantorMobileNumbers || []).map(m => m.number).filter(n => n !== loan.primaryGuarantorMobile),
+      ].filter(Boolean)
+    : [];
 
-  const allGuarantorMobiles = [
-    loan.primaryGuarantorMobile,
-    ...(loan.guarantorMobileNumbers || []).map(m => m.number).filter(n => n !== loan.primaryGuarantorMobile)
-  ].filter(Boolean);
+  /* ── Data fetching ── */
+  useEffect(() => {
+    const fetchLoan = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
+        if (loanType === 'Monthly') {
+          // ── Mock data path for Monthly loans ──
+          const idToFind = typeof loanId === 'string' ? parseInt(loanId, 10) : loanId;
+          const found = mockMonthlyLoans.find(
+            (l) => l.id === idToFind || String(l.id) === String(loanId)
+          );
+          if (found) {
+            setLoan(mapLoanData(found));
+          } else {
+            setSearchMode(true);
+          }
+          setLoading(false);
+          return;
+        }
+
+        // ── API path for other loan types ──
+        // 1. Check localStorage cache
+        if (typeof window !== 'undefined') {
+          const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
+          const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          if (cache[loanId]) {
+            setLoan(mapLoanData(cache[loanId]));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 2. Fetch first 100 loans and search by ID
+        const endpoint = `/${loanType.toLowerCase()}-loans?limit=100`;
+        const res = await apiClient.get(endpoint);
+        if (res.success && res.data) {
+          if (typeof window !== 'undefined') {
+            try {
+              const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
+              const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+              res.data.forEach(l => { cache[l.id] = l; });
+              localStorage.setItem(cacheKey, JSON.stringify(cache));
+            } catch (e) { /* ignore */ }
+          }
+
+          const found = res.data.find(l => l.id === loanId);
+          if (found) {
+            setLoan(mapLoanData(found));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 3. Not found in list — show search verification panel
+        setSearchMode(true);
+      } catch (err) {
+        setError(err.message || 'Failed to load loan');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLoan();
+  }, [loanId, loanType]);
+
+  /* ── Search handler ── */
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setSearchError(null);
+    try {
+      const q = searchQuery.trim().toLowerCase();
+
+      if (loanType === 'Monthly') {
+        // ── Mock search for Monthly loans ──
+        const matched = mockMonthlyLoans.find(
+          (l) =>
+            l.loanNumber?.toLowerCase() === q ||
+            l.customerName?.toLowerCase().includes(q)
+        );
+        if (matched) {
+          setLoan(mapLoanData(matched));
+          setSearchMode(false);
+          toast.success('Loan loaded successfully!');
+        } else {
+          throw new Error('No matching loan found.');
+        }
+        return;
+      }
+
+      // ── API search for other loan types ──
+      const endpoint = `/${loanType.toLowerCase()}-loans`;
+      let res = await apiClient.get(`${endpoint}?loanNumber=${encodeURIComponent(q)}`);
+      if (!res.success || !res.data || res.data.length === 0) {
+        res = await apiClient.get(`${endpoint}?customerName=${encodeURIComponent(q)}`);
+      }
+
+      if (res.success && res.data && res.data.length > 0) {
+        const matched = res.data.find(l => l.id === loanId) || res.data[0];
+        try {
+          const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
+          const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          res.data.forEach(l => { cache[l.id] = l; });
+          localStorage.setItem(cacheKey, JSON.stringify(cache));
+        } catch (e) { /* ignore */ }
+
+        setLoan(mapLoanData(matched));
+        setSearchMode(false);
+        toast.success('Loan loaded successfully!');
+      } else {
+        throw new Error('No matching loan found.');
+      }
+    } catch (err) {
+      setSearchError(err.message || 'Verification failed. Try again.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  /* ── Conditional renders (ALL hooks are above this line) ── */
+
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="mt-4 text-sm font-semibold text-text-secondary uppercase tracking-wider">Loading Profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (searchMode || error || !loan) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-white border border-border-custom rounded-2xl shadow-sm max-w-md mx-auto my-16">
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Shield className="h-7 w-7" />
+        </div>
+        <h2 className="text-base font-black text-text-primary mb-2 text-center uppercase tracking-tight">
+          Verify Loan Details
+        </h2>
+        <p className="text-xs text-text-secondary mb-6 text-center max-w-xs leading-relaxed">
+          Enter the <strong>Loan Number</strong> (e.g.&nbsp;ML-1001) or <strong>Customer Name</strong> to load this loan profile.
+        </p>
+
+        <div className="w-full space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Loan Number or Customer Name…"
+              className="w-full h-[42px] rounded-xl border border-border-custom bg-slate-50/50 px-4 pr-14 text-text-primary placeholder-neutral focus:border-primary focus:bg-white focus:ring-2 focus:ring-primary/20 transition-all outline-none text-sm font-semibold"
+              onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
+            />
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg bg-primary px-3 py-1 text-white font-bold text-xs hover:bg-secondary transition-colors disabled:opacity-40"
+            >
+              {isSearching ? '…' : 'Search'}
+            </button>
+          </div>
+
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 text-center">{searchError}</p>
+          )}
+          {error && !searchMode && (
+            <p className="text-[11px] font-bold text-rose-500 text-center">{error}</p>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <Link
+              href={routePrefix}
+              className="flex-1 text-center py-2.5 rounded-xl border border-border-custom text-xs font-bold text-text-secondary hover:bg-slate-50 transition-colors uppercase tracking-wider"
+            >
+              ← Back
+            </Link>
+            <button
+              onClick={handleSearch}
+              disabled={isSearching || !searchQuery.trim()}
+              className="flex-1 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-secondary transition-colors uppercase tracking-wider disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSearching ? 'Loading…' : 'Load Profile'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Main render (loan is guaranteed non-null here) ── */
   return (
     <div className="space-y-6 pb-8">
       {/* Sticky Header */}
@@ -110,7 +416,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
             </Link>
             <h1 className="text-xl md:text-2xl font-black text-text-primary uppercase tracking-tight">Loan Profile View</h1>
           </div>
-          
+
           <div className="flex items-center gap-3 flex-wrap text-xs font-bold text-text-secondary uppercase tracking-wider">
             <div className="flex items-center gap-2">
               <span className="text-[10px] text-text-secondary font-extrabold">Loan Number</span>
@@ -142,7 +448,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
             }`} />
             {loan.status}
           </span>
-          
+
           <Link
             href={`${routePrefix}/${loanId}/edit`}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border-custom bg-white px-3.5 py-1.5 text-xs font-bold text-primary hover:bg-background-custom transition-all hover:scale-102 active:scale-98 shadow-3xs shrink-0"
@@ -208,7 +514,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
               <DetailField label="PAN Number" value={loan.panNumber} />
               <DetailField label="Aadhar Number" value={loan.aadharNumber} />
               <DetailField label="Ownership Type" value={loan.ownRent} hasDropdown />
-              
+
               <div className="group flex flex-col gap-1.5 rounded-xl border border-border-custom bg-background-custom p-3.5 transition-all duration-200 hover:border-primary/30 hover:bg-background-custom sm:col-span-2 shadow-3xs">
                 <p className="text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">Customer Mobile Number(s)</p>
                 <div className="flex flex-wrap gap-2 mt-1">
@@ -226,7 +532,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
               <div className="grid gap-4 sm:grid-cols-2">
                 <DetailField label="Guarantor Name" value={loan.guarantorName} />
                 <DetailField label="Guarantor Aadhar" value={loan.guarantorAadhar} />
-                
+
                 <div className="group flex flex-col gap-1.5 rounded-xl border border-border-custom bg-background-custom p-3.5 transition-all duration-200 hover:border-primary/30 hover:bg-background-custom sm:col-span-2 shadow-3xs">
                   <p className="text-[11px] font-extrabold uppercase tracking-wider text-text-secondary">Guarantor Mobile Number(s)</p>
                   <div className="flex flex-wrap gap-2 mt-1">
@@ -257,7 +563,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
               <DetailField label="Type of Vehicle" value={loan.typeOfVehicle} />
               <DetailField label="Board Type" value={loan.boardType === 'Yellow' ? 'Yellow (Commercial)' : 'White (Private)'} hasDropdown />
               <DetailField label="HP Entry" value={loan.hpEntry} hasDropdown />
-              
+
               <div className="space-y-1.5 w-full">
                 <p className="text-[11px] font-extrabold uppercase tracking-wider text-neutral">RTO Work Pending</p>
                 <div className="flex flex-wrap gap-1.5 p-1">
@@ -509,7 +815,6 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
                   </td>
                 </tr>
               )}
-
             </tbody>
           </table>
         </div>
