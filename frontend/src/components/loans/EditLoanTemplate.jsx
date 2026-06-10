@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, DollarSign, X } from 'lucide-react';
 import CreateLoanForm from '@/components/forms/CreateLoanForm';
-import { mockLoans } from '@/mock/loans';
 import { formatCurrency, formatDate } from '@/utils/formatting';
 import { generateEmiSchedule } from '@/utils/generateEmiSchedule';
 import { useAuthStore } from '@/store/authStore';
+import { apiClient } from '@/utils/apiClient';
+import { mockMonthlyLoans } from '@/mock/monthlyLoans';
 
 const formatDateTime = (dateStr) => {
   if (!dateStr || dateStr === '-') return '-';
@@ -42,29 +43,160 @@ const removeAt = (arr, index) => arr.filter((_, i) => i !== index);
 /* ─── Payment Mode Options ─── */
 const PAYMENT_MODES = ['Cash', 'Online', 'Cheque'];
 
+/* ─── Map raw data → form-ready object ─── */
+const mapLoan = (d) => ({
+  id: d.id,
+  loanType: d.loanType || 'Monthly',
+  loanNumber: d.loanNumber,
+  status: d.status,
+  createdAt: d.createdAt,
+  dateLoanDisbursed: d.dateLoanDisbursed
+    ? new Date(d.dateLoanDisbursed).toISOString().split('T')[0] : '',
+  emiStartDate: d.emiStartDate
+    ? new Date(d.emiStartDate).toISOString().split('T')[0] : '',
+  emiEndDate: d.emiEndDate
+    ? new Date(d.emiEndDate).toISOString().split('T')[0] : '',
+  loanAmount: d.totalPrincipalAmount ?? d.loanAmount,
+  totalPrincipalAmount: d.totalPrincipalAmount ?? d.loanAmount,
+  interestRate: d.interestRate,
+  tenure: d.tenure,
+  processingFeeRate: d.processingFeeRate,
+  emiAmount: d.monthlyEMI ?? d.emiAmount,
+  dueDate: d.emiStartDate ?? d.dueDate,
+
+  customerName: d.customer?.name ?? d.customerName,
+  panNumber: d.customer?.panNumber ?? d.panNumber,
+  aadharNumber: d.customer?.aadharNumber ?? d.aadharNumber,
+  ownRent: d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
+  mobile: d.customer?.primaryMobile ?? d.mobile,
+  primaryMobileNumber: d.customer?.primaryMobile ?? d.mobile,
+  mobileNumbers: d.customer?.mobileNumbers?.map?.(n =>
+    typeof n === 'string' ? { number: n } : n
+  ) ?? d.mobileNumbers ?? [],
+  currentAddress: d.customer?.currentAddress ?? d.currentAddress ?? d.customerAddress,
+  customerAddress: d.customer?.currentAddress ?? d.customerAddress,
+  customerPincode: d.customer?.pincode ?? d.customerPincode,
+
+  guarantorName: d.customer?.guarantorName ?? d.guarantorName,
+  guarantorAadhar: d.customer?.guarantorAadhar ?? d.guarantorAadhar,
+  primaryGuarantorMobile: d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
+  guarantorMobileNumbers: d.customer?.guarantorMobileNumbers?.map?.(n =>
+    typeof n === 'string' ? { number: n } : n
+  ) ?? d.guarantorMobileNumbers ?? [],
+  guarantorAddress: d.customer?.guarantorAddress ?? d.guarantorAddress,
+  guarantorPincode: d.customer?.guarantorPincode ?? d.guarantorPincode,
+
+  vehicleNumber: d.vehicleNumber,
+  makeModel: d.typeOfVehicle ?? d.makeModel,
+  modelYear: d.modelYear,
+  chassisNumber: d.chassisNumber,
+  engineNumber: d.engineNumber,
+  typeOfVehicle: d.typeOfVehicle,
+  boardType: d.boardType,
+  hpEntry: d.hpEntry,
+  rtoPending: d.rtoPending || [],
+  dealerName: d.dealerName,
+  dealerNumber: d.dealerNumber,
+  fcDate: d.fcDate ? new Date(d.fcDate).toISOString().split('T')[0] : '',
+  insuranceDate: d.insuranceDate ? new Date(d.insuranceDate).toISOString().split('T')[0] : '',
+
+  remarks: d.followUps?.[0]?.employeeComment || d.remarks || '',
+  followUpDate: d.followUps?.[0]?.promisedDate
+    ? new Date(d.followUps[0].promisedDate).toISOString().split('T')[0]
+    : (d.followUpDate || ''),
+});
+
 export default function EditLoanTemplate({ loanType, loanId }) {
-  const loan = useMemo(() => mockLoans.find((l) => l.id === loanId), [loanId]);
+  const [loan, setLoan] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const user = useAuthStore((state) => state.user);
 
-  if (!loan) {
-    notFound();
-  }
+  useEffect(() => {
+    const fetchLoan = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        if (loanType === 'Monthly') {
+          // ── Mock data path for Monthly loans ──
+          const idToFind = typeof loanId === 'string' ? parseInt(loanId, 10) : loanId;
+          const found = mockMonthlyLoans.find(
+            (l) => l.id === idToFind || String(l.id) === String(loanId)
+          );
+          if (found) {
+            setLoan(mapLoan(found));
+          } else {
+            throw new Error('Loan not found. Please go back and try again.');
+          }
+          setLoading(false);
+          return;
+        }
+
+        // ── API path for other loan types ──
+        // 1. Try localStorage cache first
+        if (typeof window !== 'undefined') {
+          const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
+          const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+          if (cache[loanId]) {
+            setLoan(mapLoan(cache[loanId]));
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 2. Fallback: fetch list and find by ID
+        const endpoint = `/${loanType.toLowerCase()}-loans?limit=100`;
+        const res = await apiClient.get(endpoint);
+        if (res.success && res.data) {
+          // Repopulate cache
+          if (typeof window !== 'undefined') {
+            try {
+              const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
+              const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+              res.data.forEach(l => { cache[l.id] = l; });
+              localStorage.setItem(cacheKey, JSON.stringify(cache));
+            } catch (e) {}
+          }
+          const found = res.data.find(l => l.id === loanId);
+          if (found) {
+            setLoan(mapLoan(found));
+            setLoading(false);
+            return;
+          }
+        }
+
+        throw new Error('Loan not found. Please go back and try again.');
+      } catch (err) {
+        setError(err.message || 'Failed to load loan');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLoan();
+  }, [loanId, loanType]);
 
   const routePrefix = `/${loanType.toLowerCase()}-loans`;
   const [showEmiModal, setShowEmiModal] = useState(false);
   const [selectedEmi, setSelectedEmi] = useState(null);
 
   /* ─── EMI schedule state ─── */
-  const [schedule, setSchedule] = useState(() =>
-    generateEmiSchedule(
-      loan.loanAmount,
-      loan.tenure,
-      loan.emiStartDate,
-      loan.id,
-      loan.loanType || loanType,
-      loan.interestRate
-    )
-  );
+  const [schedule, setSchedule] = useState([]);
+
+  useEffect(() => {
+    if (loan) {
+      setSchedule(
+        generateEmiSchedule(
+          loan.loanAmount,
+          loan.tenure,
+          loan.emiStartDate,
+          loan.id,
+          loan.loanType || loanType,
+          loan.interestRate
+        )
+      );
+    }
+  }, [loan, loanType]);
 
   /* ─── Modal form state ─── */
   const [modalPayments, setModalPayments] = useState([]);
@@ -135,6 +267,31 @@ export default function EditLoanTemplate({ loanType, loanId }) {
     Pending: 'bg-danger/5 text-danger border-danger/20',
   };
 
+  if (loading) {
+    return (
+      <div className="flex h-[400px] items-center justify-center">
+        <div className="text-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto"></div>
+          <p className="mt-4 text-sm font-semibold text-text-secondary uppercase tracking-wider">Loading Profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !loan) {
+    return (
+      <div className="flex h-[400px] flex-col items-center justify-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-danger/10 text-danger">
+          <X className="h-8 w-8" />
+        </div>
+        <h2 className="text-lg font-bold text-text-primary mb-2">Failed to load loan profile</h2>
+        <p className="text-sm text-text-secondary mb-6">{error || 'Loan not found'}</p>
+        <Link href={routePrefix} className="rounded-lg bg-primary px-6 py-2 text-sm font-bold text-white hover:bg-secondary">
+          Go Back
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-8">

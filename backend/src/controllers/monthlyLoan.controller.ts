@@ -258,6 +258,30 @@ export const getMonthlyLoans = async (req: Request, res: Response): Promise<void
   }
 };
 
+export const getMonthlyLoanById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const loan = await prisma.monthlyLoan.findUnique({
+      where: { id },
+      include: {
+        customer: true,
+        payments: true,
+        followUps: true
+      }
+    });
+
+    if (!loan) {
+      res.status(404).json({ success: false, message: 'Loan not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: loan });
+  } catch (error: any) {
+    console.error('Error fetching loan details:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch loan details', error: error.message });
+  }
+};
+
 export const exportMonthlyLoans = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 

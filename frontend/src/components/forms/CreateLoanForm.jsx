@@ -25,6 +25,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { apiClient } from '@/utils/apiClient';
 
 export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
   const router = useRouter();
@@ -184,19 +185,50 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      console.log(loan ? 'Loan Updated:' : 'Loan Created:', {
+      const payload = {
         ...data,
-        calculatedEMI: monthlyEMI,
-        calculatedInterest: totalInterest,
         processingFee: processingFee,
-      });
-      toast.success(loan ? 'Loan profile updated successfully!' : 'Loan profile created successfully!');
-      if (!loan) reset();
-      router.push('/monthly-loans');
+      };
+
+      if (loan) {
+        // Edit existing loan
+        const res = await apiClient.put(`/monthly-loans/${loan.id}`, payload);
+        if (res.success) {
+          // Cache the updated loan
+          try {
+            const cache = JSON.parse(localStorage.getItem('monthly_loans_cache') || '{}');
+            cache[loan.id] = res.data;
+            localStorage.setItem('monthly_loans_cache', JSON.stringify(cache));
+          } catch (e) {
+            console.error('Failed to update cache:', e);
+          }
+          toast.success('Loan profile updated successfully!');
+          router.push('/monthly-loans');
+        } else {
+          throw new Error(res.message || 'Failed to update loan');
+        }
+      } else {
+        // Create new loan
+        const res = await apiClient.post('/monthly-loans', payload);
+        if (res.success) {
+          // Cache the created loan
+          try {
+            const cache = JSON.parse(localStorage.getItem('monthly_loans_cache') || '{}');
+            cache[res.data.id] = res.data;
+            localStorage.setItem('monthly_loans_cache', JSON.stringify(cache));
+          } catch (e) {
+            console.error('Failed to create cache:', e);
+          }
+          toast.success('Loan profile created successfully!');
+          reset();
+          router.push('/monthly-loans');
+        } else {
+          throw new Error(res.message || 'Failed to create loan');
+        }
+      }
     } catch (error) {
       console.error(loan ? 'Error updating loan:' : 'Error creating loan:', error);
+      toast.error(error.message || 'An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
