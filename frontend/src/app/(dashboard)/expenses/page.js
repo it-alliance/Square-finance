@@ -1,320 +1,164 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import PageHeader from '@/components/common/PageHeader';
-import SearchInput from '@/components/common/SearchInput';
-import StatusBadge from '@/components/common/StatusBadge';
-import DataTable from '@/components/tables/DataTable';
-import Pagination from '@/components/tables/Pagination';
 import ExpenseForm from '@/components/forms/ExpenseForm';
-import TableFilters from '@/components/tables/TableFilters';
-import { mockExpenses } from '@/mock/expenses';
-import { formatCurrency, formatDate, searchFilter } from '@/utils/formatting';
-import { ITEMS_PER_PAGE, EXPENSE_CATEGORIES } from '@/utils/constants';
-import { Plus, Eye, Edit2, Trash2 } from 'lucide-react';
+import { mockExpenses, generateExpenseId } from '@/mock/expenses';
+import { formatCurrency, formatDate } from '@/utils/formatting';
+import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { confirmToast } from '@/utils/toast-utils';
+import DataTable from '@/components/tables/DataTable';
+import PageHeader from '@/components/common/PageHeader';
+import Pagination from '@/components/tables/Pagination';
+import { ITEMS_PER_PAGE } from '@/utils/constants';
 
 export default function ExpensesPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilters, setActiveFilters] = useState({});
-  const [currentPage, setCurrentPage] = useState(1);
-  const [showForm, setShowForm] = useState(false);
-  const [editingExpense, setEditingExpense] = useState(null);
   const [expenses, setExpenses] = useState(mockExpenses);
-  const [selectedExpense, setSelectedExpense] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [officeExpensesOnly, setOfficeExpensesOnly] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(ITEMS_PER_PAGE);
 
-  // Filter and search
+  // Filter data
   const filteredData = useMemo(() => {
-    let data = searchFilter(expenses, searchTerm, [
-      'expenseId',
-      'expenseName',
-      'description',
-    ]);
-
-    if (activeFilters.category) {
-      data = data.filter((item) => item.category === activeFilters.category);
+    let data = expenses;
+    if (officeExpensesOnly) {
+      data = data.filter((item) => item.type === 'Office');
     }
+    // Sort by date descending
+    return data.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [officeExpensesOnly, expenses]);
 
-    return data;
-  }, [searchTerm, activeFilters, expenses]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  // Pagination logic
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage) || 1;
   const paginatedData = filteredData.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
+    (currentPage - 1) * rowsPerPage,
+    currentPage * rowsPerPage
   );
 
-  const handleFilterChange = (key, value) => {
-    setActiveFilters((prev) => ({ ...prev, [key]: value }));
+  const handleFilterChange = (checked) => {
+    setOfficeExpensesOnly(checked);
     setCurrentPage(1);
   };
 
-  const handleClearFilters = () => {
-    setActiveFilters({});
-    setSearchTerm('');
+  const handleRowsPerPageChange = (value) => {
+    setRowsPerPage(Number(value));
     setCurrentPage(1);
   };
 
   const handleAddExpense = () => {
-    setEditingExpense(null);
-    setShowForm(true);
-  };
-
-  const handleEditExpense = (expense) => {
-    setEditingExpense(expense);
     setShowForm(true);
   };
 
   const handleFormSubmit = (data) => {
-    if (editingExpense) {
-      // Update existing expense
-      setExpenses((prev) =>
-        prev.map((exp) =>
-          exp.id === editingExpense.id ? { ...exp, ...data } : exp
-        )
-      );
-    } else {
-      // Add new expense
-      setExpenses((prev) => [
-        ...prev,
-        {
-          id: prev.length + 1,
-          expenseId: `EXP${String(prev.length + 1).padStart(3, '0')}`,
-          status: 'Pending',
-          ...data,
-        },
-      ]);
-    }
-    toast.success(editingExpense ? 'Expense updated successfully!' : 'Expense created successfully!');
+    const newExpense = {
+      id: generateExpenseId(),
+      ...data,
+    };
+    setExpenses((prev) => [newExpense, ...prev]);
+    toast.success('Expense recorded successfully!');
     setShowForm(false);
-    setEditingExpense(null);
   };
-
-  const handleDeleteExpense = (id) => {
-    confirmToast('Are you sure you want to delete this expense?', () => {
-      setExpenses((prev) => prev.filter((exp) => exp.id !== id));
-      toast.success('Expense deleted successfully!');
-    });
-  };
-
-  // Calculate total
-  const totalAmount = filteredData.reduce((sum, expense) => sum + expense.amount, 0);
 
   const columns = [
-    { key: 'expenseId', label: 'Expense ID' },
-    { key: 'expenseName', label: 'Expense Name' },
-    { key: 'category', label: 'Category' },
-    {
-      key: 'amount',
-      label: 'Amount',
-      render: (value) => formatCurrency(value),
-    },
     {
       key: 'date',
       label: 'Date',
-      render: (value) => formatDate(value),
+      render: (val) =>
+        new Intl.DateTimeFormat('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        }).format(new Date(val)),
     },
     {
-      key: 'status',
-      label: 'Status',
-      render: (value) => <StatusBadge status={value} />,
-    },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (_, row) => (
-        <div className="flex gap-2">
-          <button
-            onClick={() => setSelectedExpense(row)}
-            className="rounded-lg bg-primary/10 p-2 text-primary hover:bg-primary/20 transition-colors"
-            title="View"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleEditExpense(row)}
-            className="rounded-lg bg-[var(--color-success-bg)] p-2 text-success hover:bg-success/20 transition-colors"
-            title="Edit"
-          >
-            <Edit2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => handleDeleteExpense(row.id)}
-            className="rounded-lg bg-danger/10 p-2 text-danger hover:bg-danger/20 transition-colors"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
+      key: 'loanNumber',
+      label: 'Loan #',
+      render: (val, row) => (
+        <span className="inline-flex rounded-md bg-[#eff6ff] px-2 py-0.5 text-xs font-semibold text-[#2563eb] uppercase tracking-wider">
+          {row.type === 'Office' ? 'OFFICE' : val}
+        </span>
       ),
+    },
+    {
+      key: 'vehicleNumber',
+      label: 'Vehicle #',
+      render: (val) => val || '-',
+    },
+    {
+      key: 'particulars',
+      label: 'Particulars',
+    },
+    {
+      key: 'amount',
+      label: 'Amount',
+      render: (val) => formatCurrency(val),
     },
   ];
 
   return (
     <>
       <PageHeader
-        title="Expenses"
-        description="Track and manage all business expenses"
+        title="Expense Management"
+        description="Track and manage operational expenditures"
       >
-        <button
-          onClick={handleAddExpense}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-secondary transition-colors"
-        >
-          <Plus className="h-5 w-5" />
-          Add Expense
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 rounded-lg border border-border-custom bg-white px-4 py-2 cursor-pointer hover:bg-background-custom transition-all">
+            <input
+              type="checkbox"
+              checked={officeExpensesOnly}
+              onChange={(e) => handleFilterChange(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+            />
+            <span className="text-sm font-medium text-text-primary">
+              Office Expenses Only
+            </span>
+          </label>
+          <button
+            onClick={handleAddExpense}
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-white bg-primary hover:bg-secondary transition-all shadow-sm"
+          >
+            <Plus className="h-5 w-5" />
+            Add Expense
+          </button>
+        </div>
       </PageHeader>
 
-      {/* Summary Cards */}
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-lg border border-border-custom bg-card-background p-6 shadow">
-          <p className="text-sm font-medium text-text-secondary">Total Expenses</p>
-          <p className="mt-2 text-2xl font-bold text-text-primary">
-            {formatCurrency(totalAmount)}
-          </p>
-          <p className="mt-1 text-xs text-text-secondary/80">
-            {filteredData.length} expenses in this view
-          </p>
-        </div>
-        <div className="rounded-lg border border-border-custom bg-card-background p-6 shadow">
-          <p className="text-sm font-medium text-gray-600">By Category</p>
-          <div className="mt-4 space-y-2">
-            {EXPENSE_CATEGORIES.slice(0, 3).map((cat) => {
-              const count = filteredData.filter((e) => e.category === cat).length;
-              const amount = filteredData
-                .filter((e) => e.category === cat)
-                .reduce((sum, e) => sum + e.amount, 0);
-              return (
-                <div key={cat} className="flex items-center justify-between text-sm">
-                  <span>{cat}</span>
-                  <span className="font-medium">{count} · {formatCurrency(amount)}</span>
-                </div>
-              );
-            })}
-          </div>
+      {/* Rows per page selector & status */}
+      <div className="mb-4 flex items-center justify-end gap-3 mt-4">
+        <span className="text-sm text-text-secondary font-medium">
+          Showing <strong>{filteredData.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, filteredData.length)}</strong> of <strong>{filteredData.length}</strong> expenses
+        </span>
+        <div className="flex items-center gap-1.5">
+          <label className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Rows:</label>
+          <select
+            value={rowsPerPage}
+            onChange={(e) => handleRowsPerPageChange(e.target.value)}
+            className="rounded-lg border border-border-custom bg-background-custom px-2 py-1 text-xs font-semibold text-text-primary focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+          >
+            {[5, 10, 25, 50].map((n) => (
+              <option key={n} value={n}>{n} / page</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <div className="mb-6 space-y-4 rounded-lg bg-white p-4 shadow">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <SearchInput
-            value={searchTerm}
-            onChange={setSearchTerm}
-            placeholder="Search by expense name or ID..."
-          />
-          <TableFilters
-            filters={[
-              {
-                key: 'category',
-                label: 'Filter by Category',
-                options: EXPENSE_CATEGORIES,
-              },
-            ]}
-            activeFilters={activeFilters}
-            onFilterChange={handleFilterChange}
-            onClear={handleClearFilters}
-          />
-        </div>
-        <p className="text-sm text-gray-600">
-          Showing {paginatedData.length} of {filteredData.length} expenses
-        </p>
-      </div>
-
-      {/* Table */}
       <div className="rounded-lg bg-white shadow">
         <DataTable columns={columns} data={paginatedData} />
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
+      <div className="mt-0 rounded-b-lg border border-t-0 border-border-custom bg-white">
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
         />
-      )}
+      </div>
 
-      {/* Expense Form Modal */}
       {showForm && (
         <ExpenseForm
-          expense={editingExpense}
           onSubmit={handleFormSubmit}
-          onClose={() => {
-            setShowForm(false);
-            setEditingExpense(null);
-          }}
+          onClose={() => setShowForm(false)}
         />
-      )}
-
-      {/* Expense Detail Modal */}
-      {selectedExpense && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="relative w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
-            <button
-              onClick={() => setSelectedExpense(null)}
-              className="absolute right-4 top-4 text-gray-400 hover:text-gray-600"
-            >
-              ✕
-            </button>
-            <h2 className="mb-4 text-xl font-bold">Expense Details</h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-gray-600">Expense ID</p>
-                <p className="font-medium">{selectedExpense.expenseId}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Name</p>
-                <p className="font-medium">{selectedExpense.expenseName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Category</p>
-                <p className="font-medium">{selectedExpense.category}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Amount</p>
-                <p className="font-medium">
-                  {formatCurrency(selectedExpense.amount)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Date</p>
-                <p className="font-medium">{formatDate(selectedExpense.date)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Description</p>
-                <p className="font-medium text-gray-700">
-                  {selectedExpense.description}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Status</p>
-                <div className="mt-1">
-                  <StatusBadge status={selectedExpense.status} />
-                </div>
-              </div>
-            </div>
-            <div className="mt-6 flex gap-2">
-              <button
-                onClick={() => {
-                  handleEditExpense(selectedExpense);
-                  setSelectedExpense(null);
-                }}
-                className="flex-1 rounded-lg bg-primary px-4 py-2 font-medium text-white hover:bg-secondary transition-colors"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setSelectedExpense(null)}
-                className="flex-1 rounded-lg border border-border-custom bg-white px-4 py-2 font-medium text-primary hover:bg-background-custom transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </>
   );
