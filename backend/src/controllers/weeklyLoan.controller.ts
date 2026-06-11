@@ -184,7 +184,7 @@ export const createWeeklyLoan = async (req: Request, res: Response): Promise<voi
       });
     }
 
-    res.status(201).json({ status: "success", data: formatLoanResponse(loan) });
+    res.status(201).json({ status: "success", message: "Weekly loan created successfully", data: formatLoanResponse(loan) });
   } catch (error: any) {
     console.error('Error creating weekly loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to create loan', data: error.message });
@@ -277,7 +277,7 @@ export const updateWeeklyLoan = async (req: Request, res: Response): Promise<voi
       });
     }
 
-    res.status(200).json({ status: "success", data: formatLoanResponse(updatedLoan) });
+    res.status(200).json({ status: "success", message: "Weekly loan updated successfully", data: formatLoanResponse(updatedLoan) });
   } catch (error: any) {
     console.error('Error updating weekly loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to update loan', data: error.message });
@@ -287,7 +287,7 @@ export const updateWeeklyLoan = async (req: Request, res: Response): Promise<voi
 export const getWeeklyLoans = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
-      cursor, 
+      page = '1', 
       limit = '10',
       loanNumber,
       customerName,
@@ -298,6 +298,8 @@ export const getWeeklyLoans = async (req: Request, res: Response): Promise<void>
     } = req.query;
 
     const take = parseInt(limit as string, 10);
+    const pageNum = parseInt(page as string, 10);
+    const skip = (pageNum - 1) * take;
     
     // Base where clause to exclude deleted records
     const where: any = { isDeleted: false };
@@ -315,7 +317,8 @@ export const getWeeklyLoans = async (req: Request, res: Response): Promise<void>
     }
 
     const queryOptions: any = {
-      take: take + 1, // Fetch one extra to determine if there's a next page
+      take,
+      skip,
       where,
       include: {
         customer: true
@@ -326,24 +329,24 @@ export const getWeeklyLoans = async (req: Request, res: Response): Promise<void>
       ]
     };
 
-    if (cursor) {
-      queryOptions.cursor = { id: cursor as string };
-    }
+    const [loans, totalItems] = await Promise.all([
+      prisma.weeklyLoan.findMany(queryOptions),
+      prisma.weeklyLoan.count({ where })
+    ]);
 
-    const loans = await prisma.weeklyLoan.findMany(queryOptions);
-
-    let nextCursor: string | null = null;
-    if (loans.length > take) {
-      const nextItem = loans.pop(); // Remove the extra item
-      nextCursor = nextItem!.id;
-    }
-
+    const totalPages = Math.ceil(totalItems / take);
     const formattedLoans = loans.map(formatLoanResponse);
 
     res.status(200).json({
       status: "success",
-      data: formattedLoans,
-      nextCursor
+      message: "Weekly loans fetched successfully",
+      data: {
+        data: formattedLoans,
+        items: totalItems,
+        limit: take,
+        "current page": pageNum,
+        "total number of pages": totalPages
+      }
     });
 
   } catch (error: any) {

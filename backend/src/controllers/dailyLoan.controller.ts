@@ -182,7 +182,7 @@ export const createDailyLoan = async (req: Request, res: Response): Promise<void
       });
     }
 
-    res.status(201).json({ status: "success", data: formatLoanResponse(loan) });
+    res.status(201).json({ status: "success", message: "Daily loan created successfully", data: formatLoanResponse(loan) });
   } catch (error: any) {
     console.error('Error creating daily loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to create loan', data: error.message });
@@ -274,7 +274,7 @@ export const updateDailyLoan = async (req: Request, res: Response): Promise<void
       });
     }
 
-    res.status(200).json({ status: "success", data: formatLoanResponse(updatedLoan) });
+    res.status(200).json({ status: "success", message: "Daily loan updated successfully", data: formatLoanResponse(updatedLoan) });
   } catch (error: any) {
     console.error('Error updating daily loan:', error);
     res.status(500).json({ status: "error", message: 'Failed to update loan', data: error.message });
@@ -284,7 +284,7 @@ export const updateDailyLoan = async (req: Request, res: Response): Promise<void
 export const getDailyLoans = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
-      cursor, 
+      page = '1', 
       limit = '10',
       loanNumber,
       customerName,
@@ -295,6 +295,9 @@ export const getDailyLoans = async (req: Request, res: Response): Promise<void> 
     } = req.query;
 
     const take = parseInt(limit as string, 10);
+    const pageNum = parseInt(page as string, 10);
+    const skip = (pageNum - 1) * take;
+
     const where: any = { isDeleted: false };
     
     if (loanNumber) where.loanNumber = { startsWith: loanNumber as string, mode: 'insensitive' };
@@ -309,7 +312,8 @@ export const getDailyLoans = async (req: Request, res: Response): Promise<void> 
     }
 
     const queryOptions: any = {
-      take: take + 1,
+      take,
+      skip,
       where,
       include: { customer: true },
       orderBy: [
@@ -318,24 +322,24 @@ export const getDailyLoans = async (req: Request, res: Response): Promise<void> 
       ]
     };
 
-    if (cursor) {
-      queryOptions.cursor = { id: cursor as string };
-    }
+    const [loans, totalItems] = await Promise.all([
+      prisma.dailyLoan.findMany(queryOptions),
+      prisma.dailyLoan.count({ where })
+    ]);
 
-    const loans = await prisma.dailyLoan.findMany(queryOptions);
-
-    let nextCursor: string | null = null;
-    if (loans.length > take) {
-      const nextItem = loans.pop();
-      nextCursor = nextItem!.id;
-    }
-
+    const totalPages = Math.ceil(totalItems / take);
     const formattedLoans = loans.map(formatLoanResponse);
 
     res.status(200).json({
       status: "success",
-      data: formattedLoans,
-      nextCursor
+      message: "Daily loans fetched successfully",
+      data: {
+        data: formattedLoans,
+        items: totalItems,
+        limit: take,
+        "current page": pageNum,
+        "total number of pages": totalPages
+      }
     });
 
   } catch (error: any) {

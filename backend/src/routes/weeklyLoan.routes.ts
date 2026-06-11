@@ -7,7 +7,11 @@ import {
   exportWeeklyLoans
 } from '../controllers/weeklyLoan.controller';
 
+import { authMiddleware } from '../middlewares/auth';
+
 const router = Router();
+
+router.use(authMiddleware);
 
 // Export must come before /:id routes to avoid "export" being treated as an id
 router.get('/export', exportWeeklyLoans);
