@@ -59,60 +59,60 @@ const SectionCard = ({ title, subtitle, icon: Icon, iconBg, iconColor, children,
 const mapLoanData = (d) => {
   if (!d) return null;
   return {
-    id: d.id,
+    id: d._id || d.id,
     loanType: d.loanType || 'Monthly',
-    loanNumber: d.loanNumber,
-    status: d.status,
-    createdAt: d.createdAt,
-    dateLoanDisbursed: d.dateLoanDisbursed,
-    emiStartDate: d.emiStartDate,
-    emiEndDate: d.emiEndDate,
-    loanAmount: d.totalPrincipalAmount ?? d.loanAmount,
-    interestRate: d.interestRate,
-    tenure: d.tenure,
-    processingFeeRate: d.processingFeeRate,
-    emiAmount: d.monthlyEMI ?? d.emiAmount,
-    dueDate: d.emiStartDate ?? d.dueDate,
+    loanNumber: d.loanTerms?.loanNumber || d.loanNumber,
+    status: d.status?.status || d.status,
+    createdAt: d.status?.createdAt || d.createdAt,
+    dateLoanDisbursed: d.loanTerms?.dateLoanDisbursed || d.dateLoanDisbursed,
+    emiStartDate: d.loanTerms?.emiStartDate || d.emiStartDate,
+    emiEndDate: d.loanTerms?.emiEndDate || d.emiEndDate,
+    loanAmount: d.loanTerms?.principalAmount ?? d.totalPrincipalAmount ?? d.loanAmount,
+    interestRate: d.loanTerms?.annualInterestRate ?? d.interestRate,
+    tenure: d.loanTerms?.tenureMonths ?? d.tenure,
+    processingFeeRate: d.loanTerms?.processingFeeRate ?? d.processingFeeRate,
+    emiAmount: d.loanTerms?.monthlyEMI ?? d.emiAmount,
+    dueDate: d.loanTerms?.emiStartDate ?? d.dueDate,
     payments: d.payments || [],
 
     // Support both API nested (d.customer.name) and flat mock (d.customerName)
-    customerName: d.customer?.name ?? d.customerName,
-    panNumber: d.customer?.panNumber ?? d.panNumber,
-    aadharNumber: d.customer?.aadharNumber ?? d.aadharNumber,
-    ownRent: d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
-    mobile: d.customer?.primaryMobile ?? d.mobile,
-    mobileNumbers: d.customer?.mobileNumbers?.map?.(n =>
+    customerName: d.customerDetails?.customerName || d.customer?.name || d.customerName,
+    panNumber: d.customerDetails?.panNumber || d.customer?.panNumber || d.panNumber,
+    aadharNumber: d.customerDetails?.aadharNumber || d.customer?.aadharNumber || d.aadharNumber,
+    ownRent: d.customerDetails?.ownRent || d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
+    mobile: d.customerDetails?.mobileNumbers?.[0] || d.customer?.primaryMobile || d.mobile,
+    mobileNumbers: (d.customerDetails?.mobileNumbers || []).map(n => ({ number: n })).concat(d.customer?.mobileNumbers?.map?.(n =>
       typeof n === 'string' ? { number: n } : n
-    ) ?? d.mobileNumbers ?? [],
-    customerAddress: d.customer?.currentAddress ?? d.currentAddress ?? d.customerAddress,
-    customerPincode: d.customer?.pincode ?? d.customerPincode,
+    ) || d.mobileNumbers || []),
+    customerAddress: d.customerDetails?.address || d.customer?.currentAddress || d.currentAddress || d.customerAddress,
+    customerPincode: d.customer?.pincode || d.customerPincode,
 
-    guarantorName: d.customer?.guarantorName ?? d.guarantorName,
-    guarantorAadhar: d.customer?.guarantorAadhar ?? d.guarantorAadhar,
-    primaryGuarantorMobile: d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
-    guarantorMobileNumbers: d.customer?.guarantorMobileNumbers?.map?.(n =>
+    guarantorName: d.customerDetails?.guarantorName || d.customer?.guarantorName || d.guarantorName,
+    guarantorAadhar: d.customer?.guarantorAadhar || d.guarantorAadhar,
+    primaryGuarantorMobile: d.customerDetails?.guarantorMobileNumbers?.[0] || d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
+    guarantorMobileNumbers: (d.customerDetails?.guarantorMobileNumbers || []).map(n => ({ number: n })).concat(d.customer?.guarantorMobileNumbers?.map?.(n =>
       typeof n === 'string' ? { number: n } : n
-    ) ?? d.guarantorMobileNumbers ?? [],
-    guarantorAddress: d.customer?.guarantorAddress ?? d.guarantorAddress,
-    guarantorPincode: d.customer?.guarantorPincode ?? d.guarantorPincode,
+    ) || d.guarantorMobileNumbers || []),
+    guarantorAddress: d.customer?.guarantorAddress || d.guarantorAddress,
+    guarantorPincode: d.customer?.guarantorPincode || d.guarantorPincode,
 
-    vehicleNumber: d.vehicleNumber,
-    makeModel: d.typeOfVehicle || d.makeModel,
-    modelYear: d.modelYear,
-    chassisNumber: d.chassisNumber,
-    engineNumber: d.engineNumber,
-    typeOfVehicle: d.typeOfVehicle,
-    boardType: d.boardType,
-    hpEntry: d.hpEntry,
-    rtoPending: d.rtoPending || [],
-    dealerName: d.dealerName,
-    dealerNumber: d.dealerNumber,
-    fcDate: d.fcDate,
-    insuranceDate: d.insuranceDate,
+    vehicleNumber: d.vehicleInformation?.vehicleNumber || d.vehicleNumber,
+    makeModel: d.vehicleInformation?.typeOfVehicle || d.typeOfVehicle || d.makeModel,
+    modelYear: d.vehicleInformation?.modelYear || d.modelYear,
+    chassisNumber: d.vehicleInformation?.chassisNumber || d.chassisNumber,
+    engineNumber: d.vehicleInformation?.engineNumber || d.engineNumber,
+    typeOfVehicle: d.vehicleInformation?.typeOfVehicle || d.typeOfVehicle,
+    boardType: d.vehicleInformation?.ywBoard || d.boardType,
+    hpEntry: d.vehicleInformation?.hpEntry || d.hpEntry,
+    rtoPending: d.vehicleInformation?.rtoWorkPending || d.rtoPending || [],
+    dealerName: d.vehicleInformation?.dealerName || d.dealerName,
+    dealerNumber: d.vehicleInformation?.dealerNumber || d.dealerNumber,
+    fcDate: d.vehicleInformation?.fcDate || d.fcDate,
+    insuranceDate: d.vehicleInformation?.insuranceDate || d.insuranceDate,
 
-    remarks: d.followUps?.[0]?.employeeComment || d.remarks || '',
-    followUpDate: d.followUps?.[0]?.promisedDate || d.followUpDate || null,
-    createdBy: d.createdBy || 'System Admin',
+    remarks: d.status?.remarks || d.followUps?.[0]?.employeeComment || d.remarks || '',
+    followUpDate: d.status?.nextFollowUpDate || d.followUps?.[0]?.promisedDate || d.followUpDate || null,
+    createdBy: d.status?.createdBy || d.createdBy || 'System Admin',
   };
 };
 
@@ -215,57 +215,33 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
         setLoading(true);
         setError(null);
 
-        if (loanType === 'Monthly') {
-          // ── Mock data path for Monthly loans ──
-          const idToFind = typeof loanId === 'string' ? parseInt(loanId, 10) : loanId;
-          const found = mockMonthlyLoans.find(
-            (l) => l.id === idToFind || String(l.id) === String(loanId)
-          );
-          if (found) {
-            setLoan(mapLoanData(found));
-          } else {
-            setSearchMode(true);
-          }
+        // Direct GET /api/monthly-loans/:id call to the backend
+        const endpoint = `/${loanType.toLowerCase()}-loans/${loanId}`;
+        const res = await apiClient.get(endpoint);
+        if (res.status === 'success' || res.success) {
+          const loanData = res.data || res;
+          setLoan(mapLoanData(loanData));
           setLoading(false);
           return;
         }
 
-        // ── API path for other loan types ──
-        // 1. Check localStorage cache
-        if (typeof window !== 'undefined') {
-          const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
-          const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-          if (cache[loanId]) {
-            setLoan(mapLoanData(cache[loanId]));
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 2. Fetch first 100 loans and search by ID
-        const endpoint = `/${loanType.toLowerCase()}-loans?limit=100`;
-        const res = await apiClient.get(endpoint);
-        if (res.success && res.data) {
-          if (typeof window !== 'undefined') {
-            try {
-              const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
-              const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-              res.data.forEach(l => { cache[l.id] = l; });
-              localStorage.setItem(cacheKey, JSON.stringify(cache));
-            } catch (e) { /* ignore */ }
-          }
-
-          const found = res.data.find(l => l.id === loanId);
-          if (found) {
-            setLoan(mapLoanData(found));
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 3. Not found in list — show search verification panel
+        // Not found — show search verification panel
         setSearchMode(true);
       } catch (err) {
+        // Fallback: try fetching the list and finding by ID
+        try {
+          const listEndpoint = `/${loanType.toLowerCase()}-loans?limit=1000&page=1`;
+          const listRes = await apiClient.get(listEndpoint);
+          if (listRes.status === 'success' || listRes.success) {
+            const loansArray = listRes.data?.data || listRes.data || [];
+            const found = loansArray.find(l => (l._id || l.id) === loanId);
+            if (found) {
+              setLoan(mapLoanData(found));
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (fallbackErr) { /* ignore */ }
         setError(err.message || 'Failed to load loan');
       } finally {
         setLoading(false);
@@ -283,22 +259,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
     try {
       const q = searchQuery.trim().toLowerCase();
 
-      if (loanType === 'Monthly') {
-        // ── Mock search for Monthly loans ──
-        const matched = mockMonthlyLoans.find(
-          (l) =>
-            l.loanNumber?.toLowerCase() === q ||
-            l.customerName?.toLowerCase().includes(q)
-        );
-        if (matched) {
-          setLoan(mapLoanData(matched));
-          setSearchMode(false);
-          toast.success('Loan loaded successfully!');
-        } else {
-          throw new Error('No matching loan found.');
-        }
-        return;
-      }
+
 
       // ── API search for other loan types ──
       const endpoint = `/${loanType.toLowerCase()}-loans`;
@@ -404,9 +365,9 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
   /* ── Main render (loan is guaranteed non-null here) ── */
   return (
     <div className="space-y-6 pb-8">
-      {/* Sticky Header */}
-      <div className="sticky top-[-24px] z-30 -mt-6 -mx-6 px-6 pt-6 pb-4 bg-white border-b border-border-custom shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200">
-        <div className="space-y-2">
+      {/* ─── Header ─── */}
+      <div className="sticky top-[-12px] sm:top-[-16px] md:top-[-24px] z-30 -mt-3 sm:-mt-4 md:-mt-6 -mx-3 sm:-mx-4 md:-mx-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 bg-white border-b border-border-custom shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 mb-6">
+        <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Link
               href={routePrefix}
@@ -419,15 +380,15 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
 
           <div className="flex items-center gap-3 flex-wrap text-xs font-bold text-text-secondary uppercase tracking-wider">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary font-extrabold">Loan Number</span>
-              <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">
+              <span className="text-[10px] text-text-secondary font-extrabold">Loan No.</span>
+              <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-[11px] font-black text-primary">
                 {loan.loanNumber}
               </span>
             </div>
-            <span className="text-neutral/50">|</span>
+            <span className="text-neutral/50 hidden sm:inline">|</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary font-extrabold">Vehicle Number</span>
-              <span className="rounded-md border border-border-custom bg-background-custom px-2.5 py-1 text-[11px] font-black text-text-primary">
+              <span className="text-[10px] text-text-secondary font-extrabold">Vehicle</span>
+              <span className="rounded-md border border-border-custom bg-background-custom px-2 py-1 text-[11px] font-black text-text-primary">
                 {loan.vehicleNumber}
               </span>
             </div>
@@ -479,7 +440,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
       </div>
 
       {/* Summary Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div className="group rounded-2xl p-4.5 text-white transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01]" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))' }}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-white/80">Loan Amount</p>
           <p className="text-2xl font-extrabold mt-1.5 tracking-tight">{formatCurrency(loan.loanAmount)}</p>
@@ -554,7 +515,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
             iconBg="bg-primary/10"
             iconColor="text-primary"
           >
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <DetailField label="Vehicle Number" value={loan.vehicleNumber} />
               <DetailField label="Make & Model" value={loan.makeModel} />
               <DetailField label="Model Year" value={loan.modelYear} />
@@ -582,7 +543,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
 
             <div className="mt-6 pt-5 border-t border-dashed border-border-custom">
               <h3 className="text-xs font-bold text-text-secondary uppercase tracking-wider mb-4">Dealer & Registration Timings</h3>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <DetailField label="Dealer Name" value={loan.dealerName} />
                 <DetailField label="Dealer Contact" value={loan.dealerNumber} phone />
                 <div className="hidden lg:block"></div>
@@ -707,7 +668,7 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
             </div>
           </div>
 
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4 pt-5 border-t border-border-custom">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5 border-t border-border-custom">
             <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
               <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Total Principal</p>
               <p className="text-lg font-extrabold text-text-primary mt-2">{formatCurrency(loan.loanAmount)}</p>

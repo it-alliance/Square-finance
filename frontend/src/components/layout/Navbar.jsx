@@ -11,7 +11,7 @@ export default function Navbar({ title, breadcrumbs }) {
 
   return (
     <nav className="sticky top-0 z-10 border-b border-border-custom bg-white shadow-sm">
-      <div className="flex items-center justify-between gap-4 px-6 py-4">
+      <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-6 sm:py-4">
         {/* Left Side - Menu Button & Title */}
         <div className="flex items-center gap-4">
           <button

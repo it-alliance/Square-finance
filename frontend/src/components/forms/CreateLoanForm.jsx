@@ -186,39 +186,60 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
     setIsSubmitting(true);
     try {
       const payload = {
-        ...data,
-        processingFee: processingFee,
+        customerDetails: {
+          customerName: data.customerName,
+          panNumber: data.panNumber,
+          aadharNumber: data.aadharNumber,
+          mobileNumbers: [data.primaryMobileNumber, ...(data.mobileNumbers?.map(m => m.number) || [])].filter(Boolean),
+          address: data.currentAddress || data.customerAddress,
+          ownRent: data.ownRent,
+          guarantorName: data.guarantorName,
+          guarantorMobileNumbers: [data.primaryGuarantorMobile, ...(data.guarantorMobileNumbers?.map(m => m.number) || [])].filter(Boolean)
+        },
+        loanTerms: {
+          loanNumber: data.loanNumber,
+          principalAmount: data.totalPrincipalAmount || data.loanAmount,
+          annualInterestRate: data.interestRate,
+          tenureMonths: data.tenure,
+          monthlyEMI: monthlyEMI || data.emiAmount,
+          emiStartDate: data.emiStartDate,
+          emiEndDate: data.emiEndDate,
+          processingFeeRate: data.processingFeeRate,
+          dateLoanDisbursed: data.dateLoanDisbursed
+        },
+        vehicleInformation: {
+          vehicleNumber: data.vehicleNumber,
+          typeOfVehicle: data.typeOfVehicle,
+          modelYear: data.modelYear,
+          chassisNumber: data.chassisNumber,
+          engineNumber: data.engineNumber,
+          ywBoard: data.boardType,
+          hpEntry: data.hpEntry,
+          rtoWorkPending: data.rtoPending,
+          dealerName: data.dealerName,
+          dealerNumber: data.dealerNumber,
+          fcDate: data.fcDate,
+          insuranceDate: data.insuranceDate
+        },
+        status: {
+          status: data.status,
+          remarks: data.remarks || '',
+        }
       };
 
       if (loan) {
-        // Edit existing loan
+        // Edit existing loan — PUT /api/monthly-loans/:id
         const res = await apiClient.put(`/monthly-loans/${loan.id}`, payload);
-        if (res.success) {
-          // Cache the updated loan
-          try {
-            const cache = JSON.parse(localStorage.getItem('monthly_loans_cache') || '{}');
-            cache[loan.id] = res.data;
-            localStorage.setItem('monthly_loans_cache', JSON.stringify(cache));
-          } catch (e) {
-            console.error('Failed to update cache:', e);
-          }
+        if (res.status === 'success' || res.success) {
           toast.success('Loan profile updated successfully!');
           router.push('/monthly-loans');
         } else {
           throw new Error(res.message || 'Failed to update loan');
         }
       } else {
-        // Create new loan
+        // Create new loan — POST /api/monthly-loans
         const res = await apiClient.post('/monthly-loans', payload);
-        if (res.success) {
-          // Cache the created loan
-          try {
-            const cache = JSON.parse(localStorage.getItem('monthly_loans_cache') || '{}');
-            cache[res.data.id] = res.data;
-            localStorage.setItem('monthly_loans_cache', JSON.stringify(cache));
-          } catch (e) {
-            console.error('Failed to create cache:', e);
-          }
+        if (res.status === 'success' || res.success) {
           toast.success('Loan profile created successfully!');
           reset();
           router.push('/monthly-loans');
@@ -242,49 +263,50 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="pb-8">
       {/* Live Estimate Horizontal Widget */}
-      <div className="mb-8 rounded-2xl border border-border-custom bg-white p-6 shadow-sm shadow-black/5 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Sparkles className="h-5 w-5" />
+      {/* Live Estimate Horizontal Widget */}
+      <div className="mb-6 rounded-2xl border border-border-custom bg-white p-4 shadow-sm shadow-black/5">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+            <Sparkles className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-bold text-text-primary">Live Estimate</h3>
+            <h3 className="font-bold text-text-primary text-sm">Live Estimate</h3>
             <p className="text-[10px] text-neutral">Real-time calculated values</p>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:flex md:items-center gap-6 md:gap-8 w-full md:w-auto text-sm">
-          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
-            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Monthly EMI</p>
-            <p className="font-extrabold text-primary text-xl">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="rounded-xl bg-primary/5 border border-primary/10 p-3">
+            <p className="text-[9px] font-extrabold text-primary/70 uppercase tracking-wider mb-1">Monthly EMI</p>
+            <p className="font-extrabold text-primary text-base leading-tight truncate">
               {'₹' + monthlyEMI.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
-            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Principal Amount</p>
-            <p className="font-extrabold text-text-primary text-xl">
-              {'₹' + (totalPrincipal ? Number(totalPrincipal).toLocaleString('en-IN') : '0.00')}
+          <div className="rounded-xl bg-background-custom border border-border-custom p-3">
+            <p className="text-[9px] font-extrabold text-text-secondary uppercase tracking-wider mb-1">Principal</p>
+            <p className="font-extrabold text-text-primary text-base leading-tight truncate">
+              {'₹' + (totalPrincipal ? Number(totalPrincipal).toLocaleString('en-IN') : '0')}
             </p>
           </div>
-          <div className="md:border-r md:border-border-custom pr-6 last:border-0 last:pr-0">
-            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Interest</p>
-            <p className="font-extrabold text-text-primary text-xl">
+          <div className="rounded-xl bg-background-custom border border-border-custom p-3">
+            <p className="text-[9px] font-extrabold text-text-secondary uppercase tracking-wider mb-1">Interest</p>
+            <p className="font-extrabold text-text-primary text-base leading-tight truncate">
               {'₹' + totalInterest.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
-          <div>
-            <p className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1">Processing Fees</p>
-            <p className="font-extrabold text-text-primary text-xl">
+          <div className="rounded-xl bg-background-custom border border-border-custom p-3">
+            <p className="text-[9px] font-extrabold text-text-secondary uppercase tracking-wider mb-1">Processing Fee</p>
+            <p className="font-extrabold text-text-primary text-base leading-tight truncate">
               {'₹' + processingFee.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         {/* Left Columns (Col Span 2) - Customer & Vehicle Details */}
         <div className="space-y-8 lg:col-span-2">
           {/* System Information Section */}
-          <div className={`${cardClasses} flex flex-row items-center justify-between gap-4`}>
+          <div className={`${cardClasses} flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Settings className="h-5 w-5" />
@@ -320,7 +342,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
             </div>
 
-            <div className="grid gap-x-4 gap-y-6 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-6 md:grid-cols-2">
               {/* Row 1: Loan Number | Customer Name */}
               <div>
                 <label className={labelClasses}>Loan Number *</label>
@@ -386,13 +408,22 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 )}
               </div>
 
-              {/* Row 3: Current Address (row-span-2) | Ownership Status */}
-              <div className="md:row-span-2">
+              {/* Row 3: Ownership Status | (spacer on md) */}
+              <div>
+                <label className={labelClasses}>Ownership Status</label>
+                <select {...register('ownRent')} className={inputClasses}>
+                  <option value="Own">Own</option>
+                  <option value="Rent">Rent</option>
+                </select>
+              </div>
+
+              {/* Row 4: Current Address - full width */}
+              <div className="col-span-1 md:col-span-2">
                 <label className={labelClasses}>Current Address *</label>
                 <textarea
                   {...register('currentAddress')}
                   placeholder="Enter full address"
-                  className={`${textareaClasses} h-[110px]`}
+                  className={`${textareaClasses} h-[100px]`}
                 />
                 {errors.currentAddress && (
                   <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-rose-500">
@@ -402,15 +433,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 )}
               </div>
 
-              <div>
-                <label className={labelClasses}>Ownership Status</label>
-                <select {...register('ownRent')} className={inputClasses}>
-                  <option value="Own">Own</option>
-                  <option value="Rent">Rent</option>
-                </select>
-              </div>
-
-              {/* Row 4: Mobile Numbers */}
+              {/* Row 5: Mobile Numbers */}
               <div className="space-y-3">
                 <label className={labelClasses}>Mobile Numbers *</label>
                 <div className="relative">
@@ -471,7 +494,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* Section Divider separating Customer and Guarantor Details */}
-              <div className="col-span-2 border-t border-border-custom my-2"></div>
+              <div className="col-span-1 md:col-span-2 border-t border-border-custom my-2"></div>
 
               {/* Row 5: Guarantor Name | Guarantor Mobile Numbers */}
               <div>
@@ -565,7 +588,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
 
             <div className="space-y-6">
               {/* Row 1: Vehicle Number | Chassis Number */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Vehicle Number *</label>
                   <input
@@ -600,7 +623,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* Row 2: Engine Number | Model Year */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Engine Number *</label>
                   <input
@@ -634,7 +657,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* Row 3: Vehicle Type | Board Type */}
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Vehicle Type</label>
                   <select
@@ -660,7 +683,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* Dealer Information */}
-              <div className="grid gap-4 md:grid-cols-2 pt-4 border-t border-border-custom">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 pt-4 border-t border-border-custom">
                 <div>
                   <label className={labelClasses}>Dealer Name</label>
                   <div className="relative">
@@ -705,7 +728,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* Document/Important Dates */}
-              <div className="grid gap-4 md:grid-cols-2 pt-4 border-t border-border-custom">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 pt-4 border-t border-border-custom">
                 <div>
                   <label className={labelClasses}>FC Expiry Date</label>
                   <input
@@ -725,7 +748,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
               </div>
 
               {/* HP Entry & RTO Status */}
-              <div className="grid gap-6 md:grid-cols-2 pt-4 border-t border-border-custom">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 pt-4 border-t border-border-custom">
                 <div>
                   <label className={labelClasses}>HP Entry</label>
                   <select
@@ -957,7 +980,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className={labelClasses}>Processing Fee Rate (%) *</label>
                   <div className="relative">
@@ -1180,7 +1203,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </button>
                   )}
 
-                  <div className="grid gap-3 grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {/* Payment Date */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -1210,7 +1233,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
                     </div>
                   </div>
 
-                  <div className="grid gap-3 grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                     {/* Mode */}
                     <div>
                       <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider mb-1 block">Mode</label>

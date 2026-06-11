@@ -8,12 +8,12 @@ import StatusBadge from '@/components/common/StatusBadge';
 import DataTable from '@/components/tables/DataTable';
 import Pagination from '@/components/tables/Pagination';
 import TableFilters from '@/components/tables/TableFilters';
-import { mockLoans } from '@/mock/loans';
 import { formatCurrency, formatDate, searchFilter } from '@/utils/formatting';
 import { ITEMS_PER_PAGE, LOAN_STATUSES } from '@/utils/constants';
 import { Eye, Edit2, Plus, Trash2, MoreVertical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { confirmToast } from '@/utils/toast-utils';
+import { apiClient } from '@/utils/apiClient';
 
 export default function LoansPageTemplate({ loanType }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,10 +34,39 @@ export default function LoansPageTemplate({ loanType }) {
     return () => document.removeEventListener('click', handleOutsideClick);
   }, []);
   
-  // Filter mock loans for this specific page type
-  const [loansList, setLoansList] = useState(() => 
-    mockLoans.filter((loan) => loan.loanType === loanType)
-  );
+  const [loansList, setLoansList] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLoans = async () => {
+      try {
+        const endpoint = `/${loanType.toLowerCase()}-loans?limit=1000`;
+        const response = await apiClient.get(endpoint);
+        if (response.status === 'success') {
+          const fetchedLoans = response.data?.data || response.data || [];
+          const loansArray = Array.isArray(fetchedLoans) ? fetchedLoans : [];
+          const normalizedLoans = loansArray.map(loan => ({
+             id: loan.id,
+             loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
+             customerName: loan.customerDetails?.customerName || loan.customerName,
+             vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
+             mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
+             loanAmount: loan.loanTerms?.principalAmount || loan.loanAmount,
+             emiAmount: loan.loanTerms?.monthlyEMI || loan.emiAmount,
+             tenure: loan.loanTerms?.tenureMonths || loan.tenure,
+             status: loan.status?.status || loan.status,
+             clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
+          }));
+          setLoansList(normalizedLoans);
+        }
+      } catch (error) {
+        toast.error(`Failed to fetch ${loanType} loans`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLoans();
+  }, [loanType]);
 
   const routePrefix = `/${loanType.toLowerCase()}-loans`;
 
@@ -57,9 +86,15 @@ export default function LoansPageTemplate({ loanType }) {
   }, [searchTerm, activeFilters, loansList]);
 
   const handleDeleteLoan = (id) => {
-    confirmToast('Are you sure you want to delete this loan?', () => {
-      setLoansList((prev) => prev.filter((loan) => loan.id !== id));
-      toast.success('Loan deleted successfully!');
+    confirmToast('Are you sure you want to delete this loan?', async () => {
+      try {
+        const endpoint = `/${loanType.toLowerCase()}-loans/${id}`;
+        await apiClient.delete(endpoint);
+        setLoansList((prev) => prev.filter((loan) => loan.id !== id));
+        toast.success('Loan deleted successfully!');
+      } catch (error) {
+        toast.error('Failed to delete loan');
+      }
     });
   };
 
@@ -220,7 +255,7 @@ export default function LoansPageTemplate({ loanType }) {
             onClear={handleClearFilters}
           />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm text-text-secondary font-medium">
             Showing <strong>{(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredData.length)}</strong> of <strong>{filteredData.length}</strong> loans
           </span>

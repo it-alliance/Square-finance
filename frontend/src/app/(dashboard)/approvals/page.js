@@ -353,7 +353,7 @@ export default function ApprovalsPage() {
                 <StatusPill status={selectedApproval.status} />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 rounded-2xl bg-gray-50 px-5 py-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-2xl bg-gray-50 px-5 py-5">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Type</p>
                   <div className="mt-1.5"><TypePill type={selectedApproval.type} /></div>
@@ -376,7 +376,7 @@ export default function ApprovalsPage() {
                     <p className="mt-1.5 text-sm font-medium text-gray-700">{selectedApproval.emiNumber}</p>
                   </div>
                 )}
-                <div className="col-span-2">
+                <div className="col-span-1 sm:col-span-2">
                   <p className="text-[11px] font-medium uppercase tracking-wide text-gray-400">Description</p>
                   <p className="mt-1.5 text-sm leading-relaxed text-gray-700">{selectedApproval.description}</p>
                 </div>

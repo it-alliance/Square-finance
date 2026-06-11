@@ -98,8 +98,8 @@ export default function DashboardPage() {
           <div className="border-b border-gray-200 px-6 py-4">
             <h2 className="text-lg font-bold text-gray-900">Recent Loans</h2>
           </div>
-          <div className="overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left font-medium text-gray-700">
@@ -153,8 +153,8 @@ export default function DashboardPage() {
           <div className="border-b border-gray-200 px-6 py-4">
             <h2 className="text-lg font-bold text-gray-900">Recent Approvals</h2>
           </div>
-          <div className="overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left font-medium text-gray-700">

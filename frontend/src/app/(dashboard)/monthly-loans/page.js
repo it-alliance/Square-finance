@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import PageHeader from '@/components/common/PageHeader';
 import SearchInput from '@/components/common/SearchInput';
@@ -11,16 +11,47 @@ import { LOAN_STATUSES } from '@/utils/constants';
 import { Eye, Edit2, Plus, Trash2, MoreVertical, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { confirmToast } from '@/utils/toast-utils';
-import { mockMonthlyLoans } from '@/mock/monthlyLoans';
+import { apiClient } from '@/utils/apiClient';
 
 const LIMIT = 10;
 
 export default function MonthlyLoansPage() {
-  const [loans, setLoans] = useState(mockMonthlyLoans);
+  const [loans, setLoans] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState({});
   const [activeDropdownId, setActiveDropdownId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLoans = async () => {
+      try {
+        const response = await apiClient.get('/monthly-loans?limit=1000&page=1');
+        if (response.status === 'success') {
+          const fetchedLoans = response.data?.data || response.data || [];
+          const loansArray = Array.isArray(fetchedLoans) ? fetchedLoans : [];
+          const normalizedLoans = loansArray.map(loan => ({
+             id: loan._id || loan.id,
+             loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
+             customerName: loan.customerDetails?.customerName || loan.customerName,
+             vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
+             mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
+             loanAmount: loan.loanTerms?.principalAmount || loan.loanAmount,
+             emiAmount: loan.loanTerms?.monthlyEMI || loan.emiAmount,
+             tenure: loan.loanTerms?.tenureMonths || loan.tenure,
+             status: loan.status?.status || loan.status,
+             clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
+          }));
+          setLoans(normalizedLoans);
+        }
+      } catch (error) {
+        toast.error('Failed to fetch monthly loans');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchLoans();
+  }, []);
 
   // ── In-memory filter + search ────────────────────────────────────────────────
   const filtered = useMemo(() => {
@@ -65,11 +96,16 @@ export default function MonthlyLoansPage() {
     setCurrentPage(1);
   };
 
-  // ── Delete handler (mock — removes from local state) ─────────────────────────
+  // ── Delete handler (API integrated) ─────────────────────────
   const handleDeleteLoan = (id) => {
-    confirmToast('Are you sure you want to delete this loan?', () => {
-      setLoans((prev) => prev.filter((l) => l.id !== id));
-      toast.success('Loan deleted successfully!');
+    confirmToast('Are you sure you want to delete this loan?', async () => {
+      try {
+        await apiClient.delete(`/monthly-loans/${id}`);
+        setLoans((prev) => prev.filter((l) => l.id !== id));
+        toast.success('Loan deleted successfully!');
+      } catch (error) {
+        toast.error('Failed to delete loan');
+      }
     });
   };
 
@@ -104,32 +140,32 @@ export default function MonthlyLoansPage() {
         title="Monthly Loans"
         description="Manage all active and closed monthly loans"
       >
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={handleExport}
-            className="inline-flex items-center gap-2 rounded-lg border border-border-custom bg-white px-4 py-2 font-medium text-primary transition-all hover:bg-background-custom"
+            className="inline-flex items-center gap-2 rounded-lg border border-border-custom bg-white px-3 py-2 text-sm font-medium text-primary transition-all hover:bg-background-custom"
           >
             Export
           </button>
           <Link
             href={`${routePrefix}/create`}
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 font-medium text-white bg-primary hover:bg-secondary transition-all shadow-sm"
+            className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-white bg-primary hover:bg-secondary transition-all shadow-sm"
           >
-            <Plus className="h-5 w-5" />
+            <Plus className="h-4 w-4" />
             Create New Loan
           </Link>
         </div>
       </PageHeader>
 
       {/* Filters & Search */}
-      <div className="mb-6 space-y-4 rounded-lg bg-white p-4 shadow">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="mb-4 md:mb-6 space-y-3 rounded-lg bg-white p-3 sm:p-4 shadow">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <SearchInput
             value={searchTerm}
             onChange={handleSearchChange}
             placeholder="Search by customer name, vehicle, or mobile…"
           />
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <TableFilters
               filters={[{ key: 'status', label: 'Filter by Status', options: LOAN_STATUSES }]}
               activeFilters={activeFilters}
@@ -138,7 +174,7 @@ export default function MonthlyLoansPage() {
             />
           </div>
         </div>
-        <p className="text-sm text-text-secondary font-medium">
+        <p className="text-xs sm:text-sm text-text-secondary font-medium">
           Page <strong>{currentPage}</strong> · Showing <strong>{paginated.length}</strong> of <strong>{filtered.length}</strong> loans
         </p>
       </div>
@@ -159,10 +195,15 @@ export default function MonthlyLoansPage() {
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">
-            <thead className="border-b border-gray-100 bg-gray-50/60">
+            <thead className="border-b border-gray-100 bg-gray-50">
               <tr>
                 {['Loan Number', 'Customer Name', 'Vehicle Number', 'Mobile', 'Disbursement', 'EMI', 'Tenure', 'Status', 'Actions'].map((h) => (
-                  <th key={h} className="px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.15em] text-neutral/80 whitespace-nowrap">
+                  <th
+                    key={h}
+                    className={`px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.15em] text-neutral/80 whitespace-nowrap ${
+                      h === 'Loan Number' ? 'sticky left-0 bg-gray-50 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)]' : ''
+                    }`}
+                  >
                     {h}
                   </th>
                 ))}
@@ -173,8 +214,8 @@ export default function MonthlyLoansPage() {
                 const isOpen = activeDropdownId === row.id;
                 const openUpward = paginated.length > 2 && index >= paginated.length - 2;
                 return (
-                  <tr key={row.id} className="hover:bg-gray-50/40 transition-colors">
-                    <td className="px-5 py-4">
+                  <tr key={row.id} className="group hover:bg-gray-50 transition-colors">
+                    <td className="sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)] px-5 py-4 whitespace-nowrap">
                       <Link
                         href={`${routePrefix}/${row.id}`}
                         className="font-bold text-primary hover:text-secondary hover:underline"

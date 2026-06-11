@@ -114,7 +114,7 @@ export default function PartialPaymentsPage() {
           <table className="w-full border-collapse text-left text-sm">
             <thead className="border-b border-border-custom bg-gray-50/50">
               <tr>
-                <th className="px-6 py-4 font-semibold text-text-secondary">Loan ID</th>
+                <th className="sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-6 py-4 font-semibold text-text-secondary">Loan ID</th>
                 <th className="px-6 py-4 font-semibold text-text-secondary">Applicant Name</th>
                 <th className="px-6 py-4 font-semibold text-text-secondary">Applicant Mobile</th>
                 <th className="px-6 py-4 font-semibold text-text-secondary">Vehicle Number</th>
@@ -129,8 +129,8 @@ export default function PartialPaymentsPage() {
             <tbody className="divide-y divide-border-custom">
               {paginatedData.length > 0 ? (
                 paginatedData.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/30 transition-colors">
-                    <td className="px-6 py-4 font-mono font-semibold text-primary whitespace-nowrap">{item.loanId}</td>
+                  <tr key={item.id} className="group hover:bg-gray-50/30 transition-colors">
+                    <td className="sticky left-0 bg-white group-hover:bg-gray-50/30 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] px-6 py-4 font-mono font-semibold text-primary whitespace-nowrap">{item.loanId}</td>
                     <td className="px-6 py-4 font-medium text-text-primary">{item.applicantName}</td>
                     <td className="px-6 py-4 text-text-secondary">{item.applicantMobile}</td>
                     <td className="px-6 py-4">

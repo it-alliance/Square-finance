@@ -18,20 +18,34 @@ export const useAuthStore = create(
           }
 
           const response = await apiClient.post('/auth/login', { email, password });
-          
-          if (response.success && response.token) {
+
+          // Handle multiple response shapes from backend
+          const token = response.token || response.accessToken || response.data?.token;
+          const user = response.user || response.data?.user || response.data;
+          const isSuccess =
+            response.status === 'success' ||
+            response.success === true ||
+            !!token;
+
+          if (isSuccess && token) {
             if (typeof window !== 'undefined') {
-              localStorage.setItem('token', response.token);
-              localStorage.setItem('user', JSON.stringify(response.user));
+              localStorage.setItem('token', token);
+              localStorage.setItem('user', JSON.stringify(user));
             }
             set({
-              user: response.user,
+              user,
               isAuthenticated: true,
               loading: false,
+              error: null,
             });
             return { success: true };
           } else {
-            throw new Error(response.error || 'Login failed');
+            const errMsg =
+              response.message ||
+              response.error ||
+              response.data?.message ||
+              'Login failed. Please check your credentials.';
+            throw new Error(errMsg);
           }
         } catch (error) {
           set({
