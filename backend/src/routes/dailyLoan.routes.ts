@@ -7,7 +7,11 @@ import {
   exportDailyLoans
 } from '../controllers/dailyLoan.controller';
 
+import { authMiddleware } from '../middlewares/auth';
+
 const router = Router();
+
+router.use(authMiddleware);
 
 router.post('/', createDailyLoan);
 router.get('/', getDailyLoans);

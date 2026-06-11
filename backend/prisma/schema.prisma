@@ -28,7 +28,7 @@ model User {
 }
 
 model Customer {
-  id                     String         @id @default(cuid())
+  id                     String   @id @default(cuid())
   name                   String
   currentAddress         String
   ownRent                String
@@ -39,60 +39,61 @@ model Customer {
   guarantorName          String?
   primaryGuarantorMobile String?
   guarantorMobileNumbers Json?
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-  
-  MonthlyLoans           MonthlyLoan[]
-  WeeklyLoans            WeeklyLoan[]
-  DailyLoans             DailyLoan[]
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  MonthlyLoans  MonthlyLoan[]
+  WeeklyLoans   WeeklyLoan[]
+  DailyLoans    DailyLoan[]
+  InterestLoans InterestLoan[]
 
   @@index([primaryMobile])
 }
 
 model MonthlyLoan {
-  id                     String    @id @default(cuid())
-  loanNumber             String    @unique
-  status                 String    @default("Active")
-  isDeleted              Boolean   @default(false)
-  
+  id         String  @id @default(cuid())
+  loanNumber String  @unique
+  status     String  @default("Active")
+  isDeleted  Boolean @default(false)
+
   // Relations
-  customerId             String
-  customer               Customer  @relation(fields: [customerId], references: [id])
-  
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
   // Vehicle Information
-  vehicleNumber          String
-  chassisNumber          String
-  engineNumber           String
-  modelYear              Int
-  typeOfVehicle          String
-  boardType              String
-  dealerName             String?
-  dealerNumber           String?
-  fcDate                 DateTime?
-  insuranceDate          DateTime?
-  hpEntry                String
-  rtoPending             Json?
+  vehicleNumber String
+  chassisNumber String
+  engineNumber  String
+  modelYear     Int
+  typeOfVehicle String
+  boardType     String
+  dealerName    String?
+  dealerNumber  String?
+  fcDate        DateTime?
+  insuranceDate DateTime?
+  hpEntry       String
+  rtoPending    Json?
 
   // Financial Terms
-  totalPrincipalAmount   Float
-  processingFeeRate      Float
-  processingFee          Float
-  tenure                 Int
-  interestRate           Float
-  monthlyEMI             Float
-  dateLoanDisbursed      DateTime
-  emiStartDate           DateTime
-  emiEndDate             DateTime
-  totalInterestAmount    Float
-  
-  // For Tracking & Workflow
-  nextFollowupDate       DateTime?
-  
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  totalPrincipalAmount Float
+  processingFeeRate    Float
+  processingFee        Float
+  tenure               Int
+  interestRate         Float
+  monthlyEMI           Float
+  dateLoanDisbursed    DateTime
+  emiStartDate         DateTime
+  emiEndDate           DateTime
+  totalInterestAmount  Float
 
-  payments               Payment[]
-  followUps              FollowUp[]
+  // For Tracking & Workflow
+  nextFollowupDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+  followUps FollowUp[]
 
   @@index([nextFollowupDate])
   @@index([status])
@@ -102,49 +103,49 @@ model MonthlyLoan {
 }
 
 model WeeklyLoan {
-  id                     String    @id @default(cuid())
-  loanNumber             String    @unique
-  status                 String    @default("Active")
-  isDeleted              Boolean   @default(false)
-  
+  id         String  @id @default(cuid())
+  loanNumber String  @unique
+  status     String  @default("Active")
+  isDeleted  Boolean @default(false)
+
   // Relations
-  customerId             String
-  customer               Customer  @relation(fields: [customerId], references: [id])
-  
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
   // Vehicle Information
-  vehicleNumber          String
-  chassisNumber          String
-  engineNumber           String
-  modelYear              Int
-  typeOfVehicle          String
-  boardType              String
-  dealerName             String?
-  dealerNumber           String?
-  fcDate                 DateTime?
-  insuranceDate          DateTime?
-  hpEntry                String
-  rtoPending             Json?
+  vehicleNumber String
+  chassisNumber String
+  engineNumber  String
+  modelYear     Int
+  typeOfVehicle String
+  boardType     String
+  dealerName    String?
+  dealerNumber  String?
+  fcDate        DateTime?
+  insuranceDate DateTime?
+  hpEntry       String
+  rtoPending    Json?
 
   // Financial Terms
-  totalPrincipalAmount   Float
-  processingFeeRate      Float
-  processingFee          Float
-  tenure                 Int
-  interestRate           Float
-  weeklyEMI              Float
-  dateLoanDisbursed      DateTime
-  emiStartDate           DateTime
-  emiEndDate             DateTime
-  totalInterestAmount    Float
-  
-  // For Tracking & Workflow
-  nextFollowupDate       DateTime?
-  
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  totalPrincipalAmount Float
+  processingFeeRate    Float
+  processingFee        Float
+  tenure               Int
+  interestRate         Float
+  weeklyEMI            Float
+  dateLoanDisbursed    DateTime
+  emiStartDate         DateTime
+  emiEndDate           DateTime
+  totalInterestAmount  Float
 
-  payments               Payment[]
-  followUps              FollowUp[]
+  // For Tracking & Workflow
+  nextFollowupDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+  followUps FollowUp[]
 
   @@index([nextFollowupDate])
   @@index([status])
@@ -154,49 +155,49 @@ model WeeklyLoan {
 }
 
 model DailyLoan {
-  id                     String    @id @default(cuid())
-  loanNumber             String    @unique
-  status                 String    @default("Active")
-  isDeleted              Boolean   @default(false)
-  
+  id         String  @id @default(cuid())
+  loanNumber String  @unique
+  status     String  @default("Active")
+  isDeleted  Boolean @default(false)
+
   // Relations
-  customerId             String
-  customer               Customer  @relation(fields: [customerId], references: [id])
-  
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
   // Vehicle Information
-  vehicleNumber          String
-  chassisNumber          String
-  engineNumber           String
-  modelYear              Int
-  typeOfVehicle          String
-  boardType              String
-  dealerName             String?
-  dealerNumber           String?
-  fcDate                 DateTime?
-  insuranceDate          DateTime?
-  hpEntry                String
-  rtoPending             Json?
+  vehicleNumber String
+  chassisNumber String
+  engineNumber  String
+  modelYear     Int
+  typeOfVehicle String
+  boardType     String
+  dealerName    String?
+  dealerNumber  String?
+  fcDate        DateTime?
+  insuranceDate DateTime?
+  hpEntry       String
+  rtoPending    Json?
 
   // Financial Terms
-  totalPrincipalAmount   Float
-  processingFeeRate      Float
-  processingFee          Float
-  tenure                 Int
-  interestRate           Float
-  dailyEMI               Float
-  dateLoanDisbursed      DateTime
-  emiStartDate           DateTime
-  emiEndDate             DateTime
-  totalInterestAmount    Float
-  
-  // For Tracking & Workflow
-  nextFollowupDate       DateTime?
-  
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  totalPrincipalAmount Float
+  processingFeeRate    Float
+  processingFee        Float
+  tenure               Int
+  interestRate         Float
+  dailyEMI             Float
+  dateLoanDisbursed    DateTime
+  emiStartDate         DateTime
+  emiEndDate           DateTime
+  totalInterestAmount  Float
 
-  payments               Payment[]
-  followUps              FollowUp[]
+  // For Tracking & Workflow
+  nextFollowupDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+  followUps FollowUp[]
 
   @@index([nextFollowupDate])
   @@index([status])
@@ -206,38 +207,87 @@ model DailyLoan {
 }
 
 model Payment {
-  id              String       @id @default(cuid())
-  loanType        String       // e.g., "Monthly"
-  amountPaid      Float
-  date            DateTime
-  paymentMode     String
-  
-  monthlyLoanId   String?
-  monthlyLoan     MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
+  id          String   @id @default(cuid())
+  loanType    String // e.g., "Monthly"
+  amountPaid  Float
+  date        DateTime
+  paymentMode String
 
-  weeklyLoanId    String?
-  weeklyLoan      WeeklyLoan?  @relation(fields: [weeklyLoanId], references: [id])
+  monthlyLoanId String?
+  monthlyLoan   MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
 
-  dailyLoanId     String?
-  dailyLoan       DailyLoan?   @relation(fields: [dailyLoanId], references: [id])
+  weeklyLoanId String?
+  weeklyLoan   WeeklyLoan? @relation(fields: [weeklyLoanId], references: [id])
 
-  createdAt       DateTime     @default(now())
+  dailyLoanId String?
+  dailyLoan   DailyLoan? @relation(fields: [dailyLoanId], references: [id])
+
+  interestLoanId String?
+  interestLoan   InterestLoan? @relation(fields: [interestLoanId], references: [id])
+
+  createdAt DateTime @default(now())
 }
 
 model FollowUp {
-  id              String       @id @default(cuid())
+  id              String   @id @default(cuid())
   loanType        String
   promisedDate    DateTime
   employeeComment String
-  
-  monthlyLoanId   String?
-  monthlyLoan     MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
 
-  weeklyLoanId    String?
-  weeklyLoan      WeeklyLoan?  @relation(fields: [weeklyLoanId], references: [id])
+  monthlyLoanId String?
+  monthlyLoan   MonthlyLoan? @relation(fields: [monthlyLoanId], references: [id])
 
-  dailyLoanId     String?
-  dailyLoan       DailyLoan?   @relation(fields: [dailyLoanId], references: [id])
+  weeklyLoanId String?
+  weeklyLoan   WeeklyLoan? @relation(fields: [weeklyLoanId], references: [id])
 
-  createdAt       DateTime     @default(now())
+  dailyLoanId String?
+  dailyLoan   DailyLoan? @relation(fields: [dailyLoanId], references: [id])
+
+  interestLoanId String?
+  interestLoan   InterestLoan? @relation(fields: [interestLoanId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+model InterestLoan {
+  id         String  @id @default(cuid())
+  loanNumber String  @unique
+  status     String  @default("Active")
+  isDeleted  Boolean @default(false)
+
+  // Relations
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+
+  // Pledge Information (Replaces Vehicle)
+  pledgeDetails String?
+
+  // Financial Terms
+  totalPrincipalAmount     Float
+  remainingPrincipalAmount Float
+  processingFeeRate        Float
+  processingFee            Float
+  interestRate             Float
+  monthlyInterest          Float
+  dateLoanDisbursed        DateTime
+  interestStartDate        DateTime
+
+  // Running Totals
+  totalInterestCollected  Float @default(0)
+  totalPrincipalCollected Float @default(0)
+
+  // For Tracking & Workflow
+  nextFollowupDate DateTime?
+  clientResponse   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payments  Payment[]
+  followUps FollowUp[]
+
+  @@index([nextFollowupDate])
+  @@index([status])
+  @@index([loanNumber])
+  @@index([isDeleted, createdAt(sort: Desc)])
 }
