@@ -45,3 +45,5 @@ test-weekly.ts
 stress-test.ts
 update-postman.ts
 update-postman-auth.ts
+
+Square_Finance.postman_collection.json
