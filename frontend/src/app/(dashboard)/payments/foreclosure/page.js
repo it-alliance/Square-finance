@@ -271,7 +271,7 @@ export default function ForeclosurePage() {
             </div>
 
             {/* Profile Grid */}
-            <div className="grid grid-cols-2 gap-y-6 gap-x-4 py-6 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-6 gap-x-4 py-6 text-xs">
               <div>
                 <span className="block font-bold text-gray-400 uppercase tracking-wider mb-1">Customer</span>
                 <span className="font-black text-slate-800 text-sm">{activeLoan.customerName}</span>
@@ -311,7 +311,7 @@ export default function ForeclosurePage() {
             </div>
 
             {/* Wizard Buttons */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => setActiveModal(null)}
@@ -519,7 +519,7 @@ export default function ForeclosurePage() {
                   </span>
                 </div>
 
-                <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2 text-sm">
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 text-sm">
                   <div>
                     <span className="block text-xs text-text-secondary font-medium">Mobile Number</span>
                     <span className="font-semibold text-text-primary mt-0.5 block">{activeLoan.mobile}</span>

@@ -20,7 +20,7 @@ export default function DataTable({ columns, data, onRowClick }) {
                 <th
                   key={column.key}
                   className={`px-5 py-4 text-left text-[10px] font-extrabold uppercase tracking-[0.15em] text-[#737373] whitespace-nowrap ${
-                    isSticky ? 'sticky left-0 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                  isSticky ? 'sticky left-0 bg-gray-50 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)]' : ''
                   }`}
                 >
                   {column.label}
@@ -34,7 +34,7 @@ export default function DataTable({ columns, data, onRowClick }) {
             <tr
               key={row.id || index}
               className={`group transition-colors ${
-                onRowClick ? 'cursor-pointer hover:bg-gray-50/40' : 'hover:bg-gray-50/40'
+                onRowClick ? 'cursor-pointer hover:bg-gray-50' : 'hover:bg-gray-50'
               }`}
               onClick={() => onRowClick?.(row)}
             >
@@ -44,7 +44,7 @@ export default function DataTable({ columns, data, onRowClick }) {
                   <td
                     key={column.key}
                     className={`px-5 py-4 whitespace-nowrap text-gray-800 ${
-                      isSticky ? 'sticky left-0 bg-white group-hover:bg-gray-50/40 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : ''
+                      isSticky ? 'sticky left-0 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.15)]' : ''
                     }`}
                   >
                     {column.render

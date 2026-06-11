@@ -191,7 +191,7 @@ export default function EmployeeForm({ employee, onSubmit, onClose }) {
                   <p className="text-xs text-gray-500">Configure granular action permissions</p>
                 </div>
 
-                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                <div className="rounded-lg border border-gray-200 overflow-x-auto">
                   <table className="w-full text-xs text-left">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
@@ -246,7 +246,7 @@ export default function EmployeeForm({ employee, onSubmit, onClose }) {
             {step === 3 && (
               <div className="space-y-6 animate-in fade-in duration-300">
                 <div className="rounded-xl border border-gray-200 overflow-hidden bg-white">
-                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 border-b border-gray-100">
                     <div className="p-4">
                       <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Full Name</p>
                       <p className="mt-1 font-bold text-gray-900">{formValues.operatorName}</p>
@@ -256,7 +256,7 @@ export default function EmployeeForm({ employee, onSubmit, onClose }) {
                       <p className="mt-1 font-bold text-gray-900">{formValues.protocolLevel}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 divide-x divide-gray-100 border-b border-gray-100">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-gray-100 border-b border-gray-100">
                     <div className="p-4">
                       <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">Email Address</p>
                       <p className="mt-1 font-bold text-gray-900">{formValues.credentialId}</p>
@@ -268,7 +268,7 @@ export default function EmployeeForm({ employee, onSubmit, onClose }) {
                   </div>
                   <div className="p-4">
                     <p className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 mb-3">Assigned Permissions Details</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                       {Object.entries(formValues.permissions || {}).map(([modId, actions]) => {
                         const activeActions = Object.entries(actions)
                           .filter(([_, isActive]) => isActive)

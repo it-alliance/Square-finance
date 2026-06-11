@@ -45,65 +45,65 @@ const PAYMENT_MODES = ['Cash', 'Online', 'Cheque'];
 
 /* ─── Map raw data → form-ready object ─── */
 const mapLoan = (d) => ({
-  id: d.id,
+  id: d._id || d.id,
   loanType: d.loanType || 'Monthly',
-  loanNumber: d.loanNumber,
-  status: d.status,
-  createdAt: d.createdAt,
-  dateLoanDisbursed: d.dateLoanDisbursed
-    ? new Date(d.dateLoanDisbursed).toISOString().split('T')[0] : '',
-  emiStartDate: d.emiStartDate
-    ? new Date(d.emiStartDate).toISOString().split('T')[0] : '',
-  emiEndDate: d.emiEndDate
-    ? new Date(d.emiEndDate).toISOString().split('T')[0] : '',
-  loanAmount: d.totalPrincipalAmount ?? d.loanAmount,
-  totalPrincipalAmount: d.totalPrincipalAmount ?? d.loanAmount,
-  interestRate: d.interestRate,
-  tenure: d.tenure,
-  processingFeeRate: d.processingFeeRate,
-  emiAmount: d.monthlyEMI ?? d.emiAmount,
-  dueDate: d.emiStartDate ?? d.dueDate,
+  loanNumber: d.loanTerms?.loanNumber || d.loanNumber,
+  status: d.status?.status || d.status,
+  createdAt: d.status?.createdAt || d.createdAt,
+  dateLoanDisbursed: (d.loanTerms?.dateLoanDisbursed || d.dateLoanDisbursed)
+    ? new Date(d.loanTerms?.dateLoanDisbursed || d.dateLoanDisbursed).toISOString().split('T')[0] : '',
+  emiStartDate: (d.loanTerms?.emiStartDate || d.emiStartDate)
+    ? new Date(d.loanTerms?.emiStartDate || d.emiStartDate).toISOString().split('T')[0] : '',
+  emiEndDate: (d.loanTerms?.emiEndDate || d.emiEndDate)
+    ? new Date(d.loanTerms?.emiEndDate || d.emiEndDate).toISOString().split('T')[0] : '',
+  loanAmount: d.loanTerms?.principalAmount ?? d.totalPrincipalAmount ?? d.loanAmount,
+  totalPrincipalAmount: d.loanTerms?.principalAmount ?? d.totalPrincipalAmount ?? d.loanAmount,
+  interestRate: d.loanTerms?.annualInterestRate ?? d.interestRate,
+  tenure: d.loanTerms?.tenureMonths ?? d.tenure,
+  processingFeeRate: d.loanTerms?.processingFeeRate ?? d.processingFeeRate,
+  emiAmount: d.loanTerms?.monthlyEMI ?? d.emiAmount,
+  dueDate: d.loanTerms?.emiStartDate ?? d.dueDate,
 
-  customerName: d.customer?.name ?? d.customerName,
-  panNumber: d.customer?.panNumber ?? d.panNumber,
-  aadharNumber: d.customer?.aadharNumber ?? d.aadharNumber,
-  ownRent: d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
-  mobile: d.customer?.primaryMobile ?? d.mobile,
-  primaryMobileNumber: d.customer?.primaryMobile ?? d.mobile,
-  mobileNumbers: d.customer?.mobileNumbers?.map?.(n =>
+  customerName: d.customerDetails?.customerName || d.customer?.name || d.customerName,
+  panNumber: d.customerDetails?.panNumber || d.customer?.panNumber || d.panNumber,
+  aadharNumber: d.customerDetails?.aadharNumber || d.customer?.aadharNumber || d.aadharNumber,
+  ownRent: d.customerDetails?.ownRent || d.customer?.ownershipType || d.customer?.ownRent || d.ownRent,
+  mobile: d.customerDetails?.mobileNumbers?.[0] || d.customer?.primaryMobile || d.mobile,
+  primaryMobileNumber: d.customerDetails?.mobileNumbers?.[0] || d.customer?.primaryMobile || d.mobile,
+  mobileNumbers: (d.customerDetails?.mobileNumbers || []).map(n => ({ number: n })).concat(d.customer?.mobileNumbers?.map?.(n =>
     typeof n === 'string' ? { number: n } : n
-  ) ?? d.mobileNumbers ?? [],
-  currentAddress: d.customer?.currentAddress ?? d.currentAddress ?? d.customerAddress,
-  customerAddress: d.customer?.currentAddress ?? d.customerAddress,
-  customerPincode: d.customer?.pincode ?? d.customerPincode,
+  ) || d.mobileNumbers || []),
+  currentAddress: d.customerDetails?.address || d.customer?.currentAddress || d.currentAddress || d.customerAddress,
+  customerAddress: d.customerDetails?.address || d.customer?.currentAddress || d.customerAddress,
+  customerPincode: d.customer?.pincode || d.customerPincode,
 
-  guarantorName: d.customer?.guarantorName ?? d.guarantorName,
-  guarantorAadhar: d.customer?.guarantorAadhar ?? d.guarantorAadhar,
-  primaryGuarantorMobile: d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
-  guarantorMobileNumbers: d.customer?.guarantorMobileNumbers?.map?.(n =>
+  guarantorName: d.customerDetails?.guarantorName || d.customer?.guarantorName || d.guarantorName,
+  guarantorAadhar: d.customer?.guarantorAadhar || d.guarantorAadhar,
+  primaryGuarantorMobile: d.customerDetails?.guarantorMobileNumbers?.[0] || d.customer?.primaryGuarantorMobile || d.customer?.guarantorMobile || d.primaryGuarantorMobile,
+  guarantorMobileNumbers: (d.customerDetails?.guarantorMobileNumbers || []).map(n => ({ number: n })).concat(d.customer?.guarantorMobileNumbers?.map?.(n =>
     typeof n === 'string' ? { number: n } : n
-  ) ?? d.guarantorMobileNumbers ?? [],
-  guarantorAddress: d.customer?.guarantorAddress ?? d.guarantorAddress,
-  guarantorPincode: d.customer?.guarantorPincode ?? d.guarantorPincode,
+  ) || d.guarantorMobileNumbers || []),
+  guarantorAddress: d.customer?.guarantorAddress || d.guarantorAddress,
+  guarantorPincode: d.customer?.guarantorPincode || d.guarantorPincode,
 
-  vehicleNumber: d.vehicleNumber,
-  makeModel: d.typeOfVehicle ?? d.makeModel,
-  modelYear: d.modelYear,
-  chassisNumber: d.chassisNumber,
-  engineNumber: d.engineNumber,
-  typeOfVehicle: d.typeOfVehicle,
-  boardType: d.boardType,
-  hpEntry: d.hpEntry,
-  rtoPending: d.rtoPending || [],
-  dealerName: d.dealerName,
-  dealerNumber: d.dealerNumber,
-  fcDate: d.fcDate ? new Date(d.fcDate).toISOString().split('T')[0] : '',
-  insuranceDate: d.insuranceDate ? new Date(d.insuranceDate).toISOString().split('T')[0] : '',
+  vehicleNumber: d.vehicleInformation?.vehicleNumber || d.vehicleNumber,
+  makeModel: d.vehicleInformation?.typeOfVehicle || d.typeOfVehicle || d.makeModel,
+  modelYear: d.vehicleInformation?.modelYear || d.modelYear,
+  chassisNumber: d.vehicleInformation?.chassisNumber || d.chassisNumber,
+  engineNumber: d.vehicleInformation?.engineNumber || d.engineNumber,
+  typeOfVehicle: d.vehicleInformation?.typeOfVehicle || d.typeOfVehicle,
+  boardType: d.vehicleInformation?.ywBoard || d.boardType,
+  hpEntry: d.vehicleInformation?.hpEntry || d.hpEntry,
+  rtoPending: d.vehicleInformation?.rtoWorkPending || d.rtoPending || [],
+  dealerName: d.vehicleInformation?.dealerName || d.dealerName,
+  dealerNumber: d.vehicleInformation?.dealerNumber || d.dealerNumber,
+  fcDate: (d.vehicleInformation?.fcDate || d.fcDate) ? new Date(d.vehicleInformation?.fcDate || d.fcDate).toISOString().split('T')[0] : '',
+  insuranceDate: (d.vehicleInformation?.insuranceDate || d.insuranceDate) ? new Date(d.vehicleInformation?.insuranceDate || d.insuranceDate).toISOString().split('T')[0] : '',
 
-  remarks: d.followUps?.[0]?.employeeComment || d.remarks || '',
-  followUpDate: d.followUps?.[0]?.promisedDate
-    ? new Date(d.followUps[0].promisedDate).toISOString().split('T')[0]
-    : (d.followUpDate || ''),
+  remarks: d.status?.remarks || d.followUps?.[0]?.employeeComment || d.remarks || '',
+  followUpDate: (d.status?.nextFollowUpDate || d.followUps?.[0]?.promisedDate || d.followUpDate)
+    ? new Date(d.status?.nextFollowUpDate || d.followUps?.[0]?.promisedDate || d.followUpDate).toISOString().split('T')[0]
+    : '',
 });
 
 export default function EditLoanTemplate({ loanType, loanId }) {
@@ -118,56 +118,32 @@ export default function EditLoanTemplate({ loanType, loanId }) {
         setLoading(true);
         setError(null);
 
-        if (loanType === 'Monthly') {
-          // ── Mock data path for Monthly loans ──
-          const idToFind = typeof loanId === 'string' ? parseInt(loanId, 10) : loanId;
-          const found = mockMonthlyLoans.find(
-            (l) => l.id === idToFind || String(l.id) === String(loanId)
-          );
-          if (found) {
-            setLoan(mapLoan(found));
-          } else {
-            throw new Error('Loan not found. Please go back and try again.');
-          }
+        // Direct GET /api/monthly-loans/:id call to the backend
+        const endpoint = `/${loanType.toLowerCase()}-loans/${loanId}`;
+        const res = await apiClient.get(endpoint);
+        if (res.status === 'success' || res.success) {
+          const loanData = res.data || res;
+          setLoan(mapLoan(loanData));
           setLoading(false);
           return;
         }
 
-        // ── API path for other loan types ──
-        // 1. Try localStorage cache first
-        if (typeof window !== 'undefined') {
-          const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
-          const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-          if (cache[loanId]) {
-            setLoan(mapLoan(cache[loanId]));
-            setLoading(false);
-            return;
-          }
-        }
-
-        // 2. Fallback: fetch list and find by ID
-        const endpoint = `/${loanType.toLowerCase()}-loans?limit=100`;
-        const res = await apiClient.get(endpoint);
-        if (res.success && res.data) {
-          // Repopulate cache
-          if (typeof window !== 'undefined') {
-            try {
-              const cacheKey = `${loanType.toLowerCase()}_loans_cache`;
-              const cache = JSON.parse(localStorage.getItem(cacheKey) || '{}');
-              res.data.forEach(l => { cache[l.id] = l; });
-              localStorage.setItem(cacheKey, JSON.stringify(cache));
-            } catch (e) {}
-          }
-          const found = res.data.find(l => l.id === loanId);
-          if (found) {
-            setLoan(mapLoan(found));
-            setLoading(false);
-            return;
-          }
-        }
-
         throw new Error('Loan not found. Please go back and try again.');
       } catch (err) {
+        // Fallback: fetch list and find by ID
+        try {
+          const listEndpoint = `/${loanType.toLowerCase()}-loans?limit=1000&page=1`;
+          const listRes = await apiClient.get(listEndpoint);
+          if (listRes.status === 'success' || listRes.success) {
+            const loansArray = listRes.data?.data || listRes.data || [];
+            const found = loansArray.find(l => (l._id || l.id) === loanId);
+            if (found) {
+              setLoan(mapLoan(found));
+              setLoading(false);
+              return;
+            }
+          }
+        } catch (fallbackErr) { /* ignore */ }
         setError(err.message || 'Failed to load loan');
       } finally {
         setLoading(false);
@@ -295,9 +271,9 @@ export default function EditLoanTemplate({ loanType, loanId }) {
 
   return (
     <div className="space-y-6 pb-8">
-      {/* ─── Sticky Header ─── */}
-      <div className="sticky top-[-24px] z-30 -mt-6 -mx-6 px-6 pt-6 pb-4 bg-white border-b border-border-custom shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 mb-6">
-        <div className="space-y-2">
+      {/* ─── Header ─── */}
+      <div className="sticky top-[-12px] sm:top-[-16px] md:top-[-24px] z-30 -mt-3 sm:-mt-4 md:-mt-6 -mx-3 sm:-mx-4 md:-mx-6 px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4 bg-white border-b border-border-custom shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-200 mb-6">
+        <div className="space-y-3">
           <div className="flex items-center gap-3">
             <Link
               href={`${routePrefix}/${loanId}`}
@@ -311,15 +287,15 @@ export default function EditLoanTemplate({ loanType, loanId }) {
           </div>
           <div className="flex items-center gap-3 flex-wrap text-xs font-bold text-text-secondary uppercase tracking-wider">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary font-extrabold">Loan Number</span>
-              <span className="rounded-md border border-primary/20 bg-primary/10 px-2.5 py-1 text-[11px] font-black text-primary">
+              <span className="text-[10px] text-text-secondary font-extrabold">Loan No.</span>
+              <span className="rounded-md border border-primary/20 bg-primary/10 px-2 py-1 text-[11px] font-black text-primary">
                 {loan.loanNumber}
               </span>
             </div>
-            <span className="text-neutral/50">|</span>
+            <span className="text-neutral/50 hidden sm:inline">|</span>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary font-extrabold">Vehicle Number</span>
-              <span className="rounded-md border border-border-custom bg-background-custom px-2.5 py-1 text-[11px] font-black text-text-primary">
+              <span className="text-[10px] text-text-secondary font-extrabold">Vehicle</span>
+              <span className="rounded-md border border-border-custom bg-background-custom px-2 py-1 text-[11px] font-black text-text-primary">
                 {loan.vehicleNumber}
               </span>
             </div>
@@ -532,7 +508,7 @@ export default function EditLoanTemplate({ loanType, loanId }) {
                     />
 
                     {/* Mode + Amount */}
-                    <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       <div>
                         <label className="mb-1 block text-[9px] font-black uppercase tracking-widest text-text-secondary">
                           Payment Mode
@@ -622,7 +598,7 @@ export default function EditLoanTemplate({ loanType, loanId }) {
                           }
                           className="w-full rounded-xl border border-border-custom px-3 py-2 text-xs font-semibold text-text-primary bg-white outline-none focus:ring-2 focus:ring-primary/20"
                         />
-                        <div className="grid grid-cols-2 gap-2.5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div>
                             <label className="mb-1 block text-[9px] font-black uppercase tracking-widest text-text-secondary">
                               PAYMENT MODE

@@ -1,4 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://square-finance-dev.onrender.com/api';
 
 const getAuthToken = () => {
   if (typeof window !== 'undefined') {
@@ -30,8 +30,12 @@ const request = async (endpoint, options = {}) => {
       data = { error: await response.text() };
     }
 
+    // For non-ok responses, attach the status and throw with the server message
     if (!response.ok) {
-      throw new Error(data.error || data.message || `Request failed with status ${response.status}`);
+      const errMsg = data?.message || data?.error || `Request failed with status ${response.status}`;
+      const err = new Error(errMsg);
+      err.response = data;
+      throw err;
     }
 
     return data;

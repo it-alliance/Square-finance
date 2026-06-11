@@ -181,7 +181,7 @@ export default function CollectionsReportPage() {
 
       {/* Report Navigation Tabs */}
       <div className="max-w-md rounded-2xl bg-gray-100/80 p-1">
-        <div className="grid grid-cols-3 gap-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
           <button
             onClick={() => setActiveTab('collections')}
             className={`rounded-xl py-2.5 text-[11px] font-extrabold uppercase tracking-wider transition-all duration-200 ${
