@@ -31,21 +31,7 @@ const formatLoanResponse = (loan: any) => ({
     chequeNumber: "",
     disbursement: []
   },
-  vehicleInformation: {
-    vehicleNumber: loan.vehicleNumber,
-    chassisNumber: loan.chassisNumber,
-    engineNumber: loan.engineNumber,
-    modelYear: loan.modelYear,
-    typeOfVehicle: loan.typeOfVehicle,
-    ywBoard: loan.boardType,
-    dealerName: loan.dealerName || '',
-    dealerNumber: loan.dealerNumber || '',
-    fcDate: loan.fcDate || '',
-    insuranceDate: loan.insuranceDate || '',
-    rtoWorkPending: loan.rtoPending || [],
-    hpEntry: loan.hpEntry
-  },
-  status: {
+    status: {
     status: loan.status,
     paymentStatus: "Pending",
     isSeized: false,
@@ -80,7 +66,7 @@ const calculateEMI = (principal: number, annualInterestRate: number, tenureWeeks
 
 export const createWeeklyLoan = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { customerDetails, loanTerms, vehicleInformation, status } = req.body;
+    const { customerDetails, loanTerms, status } = req.body;
 
     if (!loanTerms?.loanNumber) {
       res.status(400).json({ status: "fail", message: "Loan number is required" });
@@ -137,19 +123,7 @@ export const createWeeklyLoan = async (req: Request, res: Response): Promise<voi
         customerId: customer.id,
         loanNumber: loanTerms.loanNumber,
         status: status?.status || "Active",
-        vehicleNumber: vehicleInformation?.vehicleNumber || "",
-        chassisNumber: vehicleInformation?.chassisNumber || "",
-        engineNumber: vehicleInformation?.engineNumber || "",
-        modelYear: vehicleInformation?.modelYear ? Number(vehicleInformation.modelYear) : new Date().getFullYear(),
-        typeOfVehicle: vehicleInformation?.typeOfVehicle || "Unknown",
-        boardType: vehicleInformation?.ywBoard || "Unknown",
-        dealerName: vehicleInformation?.dealerName || null,
-        dealerNumber: vehicleInformation?.dealerNumber || null,
-        fcDate: vehicleInformation?.fcDate ? new Date(vehicleInformation.fcDate) : null,
-        insuranceDate: vehicleInformation?.insuranceDate ? new Date(vehicleInformation.insuranceDate) : null,
-        hpEntry: vehicleInformation?.hpEntry || "Not Done",
-        rtoPending: vehicleInformation?.rtoWorkPending || [],
-        
+                                                                                                        
         totalPrincipalAmount: Number(loanTerms.principalAmount),
         processingFeeRate: Number(loanTerms.processingFeeRate),
         processingFee: Number(loanTerms.processingFee || 0),
@@ -194,7 +168,7 @@ export const createWeeklyLoan = async (req: Request, res: Response): Promise<voi
 export const updateWeeklyLoan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { customerDetails, loanTerms, vehicleInformation, status } = req.body;
+    const { customerDetails, loanTerms, status } = req.body;
 
     const existingLoan = await prisma.weeklyLoan.findUnique({
       where: { id },
@@ -237,19 +211,7 @@ export const updateWeeklyLoan = async (req: Request, res: Response): Promise<voi
       where: { id },
       data: {
         status: status?.status ?? existingLoan.status,
-        vehicleNumber: vehicleInformation?.vehicleNumber ?? existingLoan.vehicleNumber,
-        chassisNumber: vehicleInformation?.chassisNumber ?? existingLoan.chassisNumber,
-        engineNumber: vehicleInformation?.engineNumber ?? existingLoan.engineNumber,
-        modelYear: vehicleInformation?.modelYear ? Number(vehicleInformation.modelYear) : existingLoan.modelYear,
-        typeOfVehicle: vehicleInformation?.typeOfVehicle ?? existingLoan.typeOfVehicle,
-        boardType: vehicleInformation?.ywBoard ?? existingLoan.boardType,
-        dealerName: vehicleInformation?.dealerName ?? existingLoan.dealerName,
-        dealerNumber: vehicleInformation?.dealerNumber ?? existingLoan.dealerNumber,
-        fcDate: vehicleInformation?.fcDate ? new Date(vehicleInformation.fcDate) : existingLoan.fcDate,
-        insuranceDate: vehicleInformation?.insuranceDate ? new Date(vehicleInformation.insuranceDate) : existingLoan.insuranceDate,
-        hpEntry: vehicleInformation?.hpEntry ?? existingLoan.hpEntry,
-        rtoPending: vehicleInformation?.rtoWorkPending ?? existingLoan.rtoPending,
-        
+                                                                                                        
         totalPrincipalAmount: principal,
         processingFeeRate: loanTerms?.processingFeeRate ? Number(loanTerms.processingFeeRate) : existingLoan.processingFeeRate,
         processingFee: loanTerms?.processingFee ? Number(loanTerms.processingFee) : existingLoan.processingFee,
@@ -292,8 +254,7 @@ export const getWeeklyLoans = async (req: Request, res: Response): Promise<void>
       loanNumber,
       customerName,
       mobileNumber,
-      vehicleNumber,
-      tenure,
+            tenure,
       status
     } = req.query;
 
@@ -307,8 +268,7 @@ export const getWeeklyLoans = async (req: Request, res: Response): Promise<void>
     // Build Prisma where clause using scalable `startsWith` for index hits
     if (loanNumber) where.loanNumber = { startsWith: loanNumber as string, mode: 'insensitive' };
     if (status) where.status = status as string;
-    if (vehicleNumber) where.vehicleNumber = { startsWith: vehicleNumber as string, mode: 'insensitive' };
-    if (tenure) where.tenure = parseInt(tenure as string, 10);
+        if (tenure) where.tenure = parseInt(tenure as string, 10);
     
     if (customerName || mobileNumber) {
       where.customer = {};
@@ -387,8 +347,7 @@ export const exportWeeklyLoans = async (req: Request, res: Response): Promise<vo
       loanNumber,
       customerName,
       mobileNumber,
-      vehicleNumber,
-      tenure,
+            tenure,
       status,
       startDate,
       endDate
@@ -398,8 +357,7 @@ export const exportWeeklyLoans = async (req: Request, res: Response): Promise<vo
     
     if (loanNumber) where.loanNumber = { startsWith: loanNumber as string, mode: 'insensitive' };
     if (status) where.status = status as string;
-    if (vehicleNumber) where.vehicleNumber = { startsWith: vehicleNumber as string, mode: 'insensitive' };
-    if (tenure) where.tenure = parseInt(tenure as string, 10);
+        if (tenure) where.tenure = parseInt(tenure as string, 10);
     
     if (startDate || endDate) {
       where.createdAt = {};
@@ -416,7 +374,7 @@ export const exportWeeklyLoans = async (req: Request, res: Response): Promise<vo
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', 'attachment; filename=weekly_loans.csv');
 
-    const headers = ['Loan Number', 'Customer Name', 'Mobile', 'Vehicle Number', 'Status', 'Principal', 'EMI', 'Tenure', 'Created At'];
+    const headers = ['Loan Number', 'Customer Name', 'Mobile', 'Status', 'Principal', 'EMI', 'Tenure', 'Created At'];
     res.write(headers.join(',') + '\n');
 
     let cursor: string | undefined = undefined;
@@ -451,8 +409,7 @@ export const exportWeeklyLoans = async (req: Request, res: Response): Promise<vo
           `"${loan.loanNumber}"`,
           `"${loan.customer?.name || ''}"`,
           `"${loan.customer?.primaryMobile || ''}"`,
-          `"${loan.vehicleNumber}"`,
-          `"${loan.status}"`,
+                    `"${loan.status}"`,
           loan.totalPrincipalAmount,
           loan.weeklyEMI,
           loan.tenure,

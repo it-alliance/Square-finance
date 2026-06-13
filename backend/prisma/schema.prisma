@@ -112,20 +112,6 @@ model WeeklyLoan {
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
 
-  // Vehicle Information
-  vehicleNumber String
-  chassisNumber String
-  engineNumber  String
-  modelYear     Int
-  typeOfVehicle String
-  boardType     String
-  dealerName    String?
-  dealerNumber  String?
-  fcDate        DateTime?
-  insuranceDate DateTime?
-  hpEntry       String
-  rtoPending    Json?
-
   // Financial Terms
   totalPrincipalAmount Float
   processingFeeRate    Float
@@ -150,7 +136,6 @@ model WeeklyLoan {
   @@index([nextFollowupDate])
   @@index([status])
   @@index([loanNumber])
-  @@index([vehicleNumber])
   @@index([isDeleted, createdAt(sort: Desc)])
 }
 
@@ -163,20 +148,6 @@ model DailyLoan {
   // Relations
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
-
-  // Vehicle Information
-  vehicleNumber String
-  chassisNumber String
-  engineNumber  String
-  modelYear     Int
-  typeOfVehicle String
-  boardType     String
-  dealerName    String?
-  dealerNumber  String?
-  fcDate        DateTime?
-  insuranceDate DateTime?
-  hpEntry       String
-  rtoPending    Json?
 
   // Financial Terms
   totalPrincipalAmount Float
@@ -202,7 +173,6 @@ model DailyLoan {
   @@index([nextFollowupDate])
   @@index([status])
   @@index([loanNumber])
-  @@index([vehicleNumber])
   @@index([isDeleted, createdAt(sort: Desc)])
 }
 
