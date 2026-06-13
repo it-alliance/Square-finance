@@ -71,7 +71,19 @@ const mapLoanData = (d) => {
     interestRate: d.loanTerms?.annualInterestRate ?? d.interestRate,
     tenure: d.loanTerms?.tenureMonths ?? d.tenure,
     processingFeeRate: d.loanTerms?.processingFeeRate ?? d.processingFeeRate,
-    emiAmount: d.loanTerms?.monthlyEMI ?? d.emiAmount,
+    emiAmount: (() => {
+      const type = d.loanType || 'Monthly';
+      const principal = d.loanTerms?.principalAmount ?? d.totalPrincipalAmount ?? d.loanAmount ?? 0;
+      const rate = d.loanTerms?.annualInterestRate ?? d.interestRate ?? 0;
+      const tenureVal = d.loanTerms?.tenureMonths ?? d.tenure ?? 1;
+
+      if (type === 'Daily' || type === 'Weekly' || type === 'Monthly') {
+        const interestAmountPerPeriod = principal * (rate / 100);
+        const totalInterest = tenureVal * interestAmountPerPeriod;
+        return Math.ceil((principal + totalInterest) / tenureVal);
+      }
+      return d.loanTerms?.monthlyEMI ?? d.emiAmount;
+    })(),
     dueDate: d.loanTerms?.emiStartDate ?? d.dueDate,
     payments: d.payments || [],
 
@@ -188,14 +200,39 @@ export default function LoanDetailsTemplate({ loanType, loanId }) {
 
   // Derived financial values (null-safe)
   const processingFee = ((loan?.processingFeeRate || 0) / 100) * (loan?.loanAmount || 0);
-  const monthlyRate = (loan?.interestRate || 0) / 100 / 12;
-  const calculatedEMI =
-    monthlyRate > 0 && (loan?.tenure || 0) > 0
-      ? (loan.loanAmount * monthlyRate * Math.pow(1 + monthlyRate, loan.tenure)) /
-        (Math.pow(1 + monthlyRate, loan.tenure) - 1)
-      : 0;
-  const totalRepayable = calculatedEMI * (loan?.tenure || 0);
-  const totalInterest = totalRepayable - (loan?.loanAmount || 0);
+  
+  const derivedFinancials = (() => {
+    const principal = loan?.loanAmount || 0;
+    const rate = loan?.interestRate || 0;
+    const tenureVal = loan?.tenure || 0;
+    const type = loan?.loanType || loanType;
+
+    if (tenureVal <= 0) {
+      return { calculatedEMI: 0, totalInterest: 0, totalRepayable: 0 };
+    }
+
+    if (type === 'Daily' || type === 'Weekly' || type === 'Monthly') {
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterest = tenureVal * interestAmountPerPeriod;
+      const totalRepayable = principal + totalInterest;
+      const calculatedEMI = Math.ceil(totalRepayable / tenureVal);
+      return { calculatedEMI, totalInterest, totalRepayable };
+    } else {
+      const monthlyRate = rate / 100 / 12;
+      const calculatedEMI =
+        monthlyRate > 0
+          ? (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureVal)) /
+            (Math.pow(1 + monthlyRate, tenureVal) - 1)
+          : 0;
+      const totalRepayable = calculatedEMI * tenureVal;
+      const totalInterest = totalRepayable - principal;
+      return { calculatedEMI, totalInterest, totalRepayable };
+    }
+  })();
+
+  const calculatedEMI = derivedFinancials.calculatedEMI;
+  const totalRepayable = derivedFinancials.totalRepayable;
+  const totalInterest = derivedFinancials.totalInterest;
 
   // Mobile collections (null-safe)
   const allMobiles = loan

@@ -85,6 +85,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
   const processingRate = watch('processingFeeRate');
   const tenure = watch('tenure');
   const interestRate = watch('interestRate');
+  const loanType = watch('loanType') || defaultLoanType;
 
   const [customRtoTask, setCustomRtoTask] = useState('');
   const [rtoDropdownOpen, setRtoDropdownOpen] = useState(false);
@@ -165,14 +166,22 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
     }
 
     if (totalPrincipal && tenure && interestRate) {
-      const monthlyRate = interestRate / 100 / 12;
-      const emi =
-        (totalPrincipal * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
-        (Math.pow(1 + monthlyRate, tenure) - 1);
-      setMonthlyEMI(emi || 0);
+      let emi = 0;
+      let interest = 0;
 
-      const totalAmount = emi * tenure;
-      const interest = totalAmount - totalPrincipal;
+      if (loanType === 'Daily' || loanType === 'Weekly' || loanType === 'Monthly') {
+        const interestAmountPerPeriod = totalPrincipal * (interestRate / 100);
+        interest = tenure * interestAmountPerPeriod;
+        const totalAmount = totalPrincipal + interest;
+        emi = Math.ceil(totalAmount / tenure);
+      } else {
+        const monthlyRate = interestRate / 100 / 12;
+        emi = (totalPrincipal * monthlyRate * Math.pow(1 + monthlyRate, tenure)) /
+              (Math.pow(1 + monthlyRate, tenure) - 1);
+        interest = emi * tenure - totalPrincipal;
+      }
+
+      setMonthlyEMI(emi || 0);
       setTotalInterest(interest || 0);
       setRemainingPrincipal(totalPrincipal || 0);
     } else {
@@ -180,11 +189,43 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
       setTotalInterest(0);
       setRemainingPrincipal(0);
     }
-  }, [totalPrincipal, processingRate, tenure, interestRate]);
+  }, [totalPrincipal, processingRate, tenure, interestRate, loanType]);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+      const routeType = (loan?.loanType || defaultLoanType || 'Monthly').toLowerCase();
+      const endpoint = `/${routeType}-loans`;
+
+      const loanTermsData = {
+        loanNumber: data.loanNumber,
+        principalAmount: data.totalPrincipalAmount || data.loanAmount,
+        annualInterestRate: data.interestRate,
+        emiStartDate: data.emiStartDate,
+        emiEndDate: data.emiEndDate,
+        processingFeeRate: data.processingFeeRate,
+        dateLoanDisbursed: data.dateLoanDisbursed
+      };
+
+      if (loanType === 'Weekly') {
+        loanTermsData.tenureWeeks = data.tenure;
+        loanTermsData.weeklyEMI = monthlyEMI || data.emiAmount;
+        loanTermsData.tenureMonths = data.tenure;
+        loanTermsData.monthlyEMI = monthlyEMI || data.emiAmount;
+      } else if (loanType === 'Daily') {
+        loanTermsData.tenureDays = data.tenure;
+        loanTermsData.dailyEMI = monthlyEMI || data.emiAmount;
+        loanTermsData.tenureMonths = data.tenure;
+        loanTermsData.monthlyEMI = monthlyEMI || data.emiAmount;
+      } else if (loanType === 'Interest') {
+        loanTermsData.interestRate = data.interestRate;
+        loanTermsData.monthlyInterest = monthlyEMI || data.emiAmount;
+        loanTermsData.interestStartDate = data.emiStartDate || data.dateLoanDisbursed;
+      } else {
+        loanTermsData.tenureMonths = data.tenure;
+        loanTermsData.monthlyEMI = monthlyEMI || data.emiAmount;
+      }
+
       const payload = {
         customerDetails: {
           customerName: data.customerName,
@@ -196,17 +237,7 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
           guarantorName: data.guarantorName,
           guarantorMobileNumbers: [data.primaryGuarantorMobile, ...(data.guarantorMobileNumbers?.map(m => m.number) || [])].filter(Boolean)
         },
-        loanTerms: {
-          loanNumber: data.loanNumber,
-          principalAmount: data.totalPrincipalAmount || data.loanAmount,
-          annualInterestRate: data.interestRate,
-          tenureMonths: data.tenure,
-          monthlyEMI: monthlyEMI || data.emiAmount,
-          emiStartDate: data.emiStartDate,
-          emiEndDate: data.emiEndDate,
-          processingFeeRate: data.processingFeeRate,
-          dateLoanDisbursed: data.dateLoanDisbursed
-        },
+        loanTerms: loanTermsData,
         vehicleInformation: {
           vehicleNumber: data.vehicleNumber,
           typeOfVehicle: data.typeOfVehicle,
@@ -228,21 +259,21 @@ export default function CreateLoanForm({ loan, defaultLoanType = 'Monthly' }) {
       };
 
       if (loan) {
-        // Edit existing loan — PUT /api/monthly-loans/:id
-        const res = await apiClient.put(`/monthly-loans/${loan.id}`, payload);
+        // Edit existing loan
+        const res = await apiClient.put(`${endpoint}/${loan.id}`, payload);
         if (res.status === 'success' || res.success) {
           toast.success('Loan profile updated successfully!');
-          router.push('/monthly-loans');
+          router.push(endpoint);
         } else {
           throw new Error(res.message || 'Failed to update loan');
         }
       } else {
-        // Create new loan — POST /api/monthly-loans
-        const res = await apiClient.post('/monthly-loans', payload);
+        // Create new loan
+        const res = await apiClient.post(endpoint, payload);
         if (res.status === 'success' || res.success) {
           toast.success('Loan profile created successfully!');
           reset();
-          router.push('/monthly-loans');
+          router.push(endpoint);
         } else {
           throw new Error(res.message || 'Failed to create loan');
         }

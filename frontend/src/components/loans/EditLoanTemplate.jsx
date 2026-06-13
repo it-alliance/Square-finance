@@ -61,7 +61,19 @@ const mapLoan = (d) => ({
   interestRate: d.loanTerms?.annualInterestRate ?? d.interestRate,
   tenure: d.loanTerms?.tenureMonths ?? d.tenure,
   processingFeeRate: d.loanTerms?.processingFeeRate ?? d.processingFeeRate,
-  emiAmount: d.loanTerms?.monthlyEMI ?? d.emiAmount,
+  emiAmount: (() => {
+    const type = d.loanType || 'Monthly';
+    const principal = d.loanTerms?.principalAmount ?? d.totalPrincipalAmount ?? d.loanAmount ?? 0;
+    const rate = d.loanTerms?.annualInterestRate ?? d.interestRate ?? 0;
+    const tenureVal = d.loanTerms?.tenureMonths ?? d.tenure ?? 1;
+
+    if (type === 'Daily' || type === 'Weekly' || type === 'Monthly') {
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterest = tenureVal * interestAmountPerPeriod;
+      return Math.ceil((principal + totalInterest) / tenureVal);
+    }
+    return d.loanTerms?.monthlyEMI ?? d.emiAmount;
+  })(),
   dueDate: d.loanTerms?.emiStartDate ?? d.dueDate,
 
   customerName: d.customerDetails?.customerName || d.customer?.name || d.customerName,

@@ -45,18 +45,32 @@ export default function LoansPageTemplate({ loanType }) {
         if (response.status === 'success') {
           const fetchedLoans = response.data?.data || response.data || [];
           const loansArray = Array.isArray(fetchedLoans) ? fetchedLoans : [];
-          const normalizedLoans = loansArray.map(loan => ({
-             id: loan.id,
-             loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
-             customerName: loan.customerDetails?.customerName || loan.customerName,
-             vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
-             mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
-             loanAmount: loan.loanTerms?.principalAmount || loan.loanAmount,
-             emiAmount: loan.loanTerms?.monthlyEMI || loan.emiAmount,
-             tenure: loan.loanTerms?.tenureMonths || loan.tenure,
-             status: loan.status?.status || loan.status,
-             clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
-          }));
+          const normalizedLoans = loansArray.map(loan => {
+             const type = loan.loanType || loanType;
+             const principal = Number(loan.loanTerms?.principalAmount || loan.loanAmount || 0);
+             const rate = Number(loan.loanTerms?.annualInterestRate || loan.interestRate || 0);
+             const tenureVal = Number(loan.loanTerms?.tenureMonths || loan.tenure || 1);
+
+             let emi = Number(loan.loanTerms?.monthlyEMI || loan.emiAmount || 0);
+             if (type === 'Daily' || type === 'Weekly' || type === 'Monthly') {
+               const interestAmountPerPeriod = principal * (rate / 100);
+               const totalInterest = tenureVal * interestAmountPerPeriod;
+               emi = Math.ceil((principal + totalInterest) / tenureVal);
+             }
+
+             return {
+               id: loan.id,
+               loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
+               customerName: loan.customerDetails?.customerName || loan.customerName,
+               vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
+               mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
+               loanAmount: principal,
+               emiAmount: emi,
+               tenure: tenureVal,
+               status: loan.status?.status || loan.status,
+               clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
+             };
+          });
           setLoansList(normalizedLoans);
         }
       } catch (error) {

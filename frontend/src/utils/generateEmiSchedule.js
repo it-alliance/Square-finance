@@ -20,26 +20,16 @@ export const generateEmiSchedule = (
     // Calculate dates and amounts based on loan type
     if (loanType === 'Daily') {
       dueDate.setDate(startDate.getDate() + i);
-      if (rate > 0) {
-        const dailyRate = rate / 100 / 365;
-        emiAmount = Math.round(
-          (principal * dailyRate * Math.pow(1 + dailyRate, terms)) /
-          (Math.pow(1 + dailyRate, terms) - 1)
-        );
-      } else {
-        emiAmount = Math.round(principal / terms);
-      }
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterestAmount = terms * interestAmountPerPeriod;
+      const totalAmount = principal + totalInterestAmount;
+      emiAmount = Math.ceil(totalAmount / terms);
     } else if (loanType === 'Weekly') {
       dueDate.setDate(startDate.getDate() + i * 7);
-      if (rate > 0) {
-        const weeklyRate = rate / 100 / 52;
-        emiAmount = Math.round(
-          (principal * weeklyRate * Math.pow(1 + weeklyRate, terms)) /
-          (Math.pow(1 + weeklyRate, terms) - 1)
-        );
-      } else {
-        emiAmount = Math.round(principal / terms);
-      }
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterestAmount = terms * interestAmountPerPeriod;
+      const totalAmount = principal + totalInterestAmount;
+      emiAmount = Math.ceil(totalAmount / terms);
     } else if (loanType === 'Interest') {
       dueDate.setMonth(startDate.getMonth() + i);
       const monthlyRate = rate / 100 / 12;
@@ -53,15 +43,10 @@ export const generateEmiSchedule = (
     } else {
       // Monthly (Default)
       dueDate.setMonth(startDate.getMonth() + i);
-      if (rate > 0) {
-        const monthlyRate = rate / 100 / 12;
-        emiAmount = Math.round(
-          (principal * monthlyRate * Math.pow(1 + monthlyRate, terms)) /
-          (Math.pow(1 + monthlyRate, terms) - 1)
-        );
-      } else {
-        emiAmount = Math.round(principal / terms);
-      }
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterestAmount = terms * interestAmountPerPeriod;
+      const totalAmount = principal + totalInterestAmount;
+      emiAmount = Math.ceil(totalAmount / terms);
     }
 
     schedule.push({
