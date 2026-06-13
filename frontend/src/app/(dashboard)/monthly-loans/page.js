@@ -30,18 +30,27 @@ export default function MonthlyLoansPage() {
         if (response.status === 'success') {
           const fetchedLoans = response.data?.data || response.data || [];
           const loansArray = Array.isArray(fetchedLoans) ? fetchedLoans : [];
-          const normalizedLoans = loansArray.map(loan => ({
-             id: loan._id || loan.id,
-             loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
-             customerName: loan.customerDetails?.customerName || loan.customerName,
-             vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
-             mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
-             loanAmount: loan.loanTerms?.principalAmount || loan.loanAmount,
-             emiAmount: loan.loanTerms?.monthlyEMI || loan.emiAmount,
-             tenure: loan.loanTerms?.tenureMonths || loan.tenure,
-             status: loan.status?.status || loan.status,
-             clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
-          }));
+          const normalizedLoans = loansArray.map(loan => {
+             const principal = Number(loan.loanTerms?.principalAmount || loan.loanAmount || 0);
+             const rate = Number(loan.loanTerms?.annualInterestRate || loan.interestRate || 0);
+             const tenureVal = Number(loan.loanTerms?.tenureMonths || loan.tenure || 1);
+             const interestAmountPerPeriod = principal * (rate / 100);
+             const totalInterest = tenureVal * interestAmountPerPeriod;
+             const emi = Math.ceil((principal + totalInterest) / tenureVal);
+
+             return {
+              id: loan._id || loan.id,
+              loanNumber: loan.loanTerms?.loanNumber || loan.loanNumber,
+              customerName: loan.customerDetails?.customerName || loan.customerName,
+              vehicleNumber: loan.vehicleInformation?.vehicleNumber || loan.vehicleNumber,
+              mobile: loan.customerDetails?.mobileNumbers?.[0] || loan.mobile || '',
+              loanAmount: principal,
+              emiAmount: emi,
+              tenure: tenureVal,
+              status: loan.status?.status || loan.status,
+              clientResponse: loan.status?.clientResponse || loan.clientResponse || ''
+             };
+          });
           setLoans(normalizedLoans);
         }
       } catch (error) {
