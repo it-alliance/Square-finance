@@ -86,11 +86,11 @@ export default function LoansPageTemplate({ loanType }) {
 
   // Filter and search
   const filteredData = useMemo(() => {
-    let data = searchFilter(loansList, searchTerm, [
-      'loanNumber',
-      'customerName',
-      'vehicleNumber',
-    ]);
+    const searchKeys = ['loanNumber', 'customerName'];
+    if (loanType !== 'Daily' && loanType !== 'Weekly') {
+      searchKeys.push('vehicleNumber');
+    }
+    let data = searchFilter(loansList, searchTerm, searchKeys);
 
     if (activeFilters.status) {
       data = data.filter((item) => item.status === activeFilters.status);
@@ -137,19 +137,19 @@ export default function LoansPageTemplate({ loanType }) {
 
   const columns = [
     {
-  key: 'loanNumber',
-  label: 'Loan Number',
-  render: (value, row) => (
-    <Link
-      href={`${routePrefix}/${row.id}`}
-      className="font-medium text-primary hover:text-secondary hover:underline"
-    >
-      {value}
-    </Link>
-  ),
-},
+      key: 'loanNumber',
+      label: 'Loan Number',
+      render: (value, row) => (
+        <Link
+          href={`${routePrefix}/${row.id}`}
+          className="font-medium text-primary hover:text-secondary hover:underline"
+        >
+          {value}
+        </Link>
+      ),
+    },
     { key: 'customerName', label: 'Customer Name' },
-    { key: 'vehicleNumber', label: 'Vehicle Number' },
+    ...(loanType !== 'Daily' && loanType !== 'Weekly' ? [{ key: 'vehicleNumber', label: 'Vehicle Number' }] : []),
     { key: 'mobile', label: 'Mobile' },
     {
       key: 'loanAmount',
@@ -254,7 +254,7 @@ export default function LoansPageTemplate({ loanType }) {
           <SearchInput
             value={searchTerm}
             onChange={setSearchTerm}
-            placeholder="Search by loan number, customer name, or vehicle..."
+            placeholder={loanType === 'Daily' || loanType === 'Weekly' ? "Search by loan number or customer name..." : "Search by loan number, customer name, or vehicle..."}
           />
           <TableFilters
             filters={[

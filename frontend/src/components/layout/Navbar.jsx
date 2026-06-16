@@ -1,16 +1,23 @@
 'use client';
 
 import { useSidebarStore } from '@/store/sidebarStore';
-import { Menu, Bell, User } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
+import { Menu, Bell, User, LogOut } from 'lucide-react';
 import { useState } from 'react';
 
 export default function Navbar({ title, breadcrumbs }) {
   const toggleSidebar = useSidebarStore((state) => state.toggleSidebar);
+  const logout = useAuthStore((state) => state.logout);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  const handleLogout = () => {
+    logout();
+    window.location.href = '/login';
+  };
+
   return (
-    <nav className="sticky top-0 z-10 border-b border-border-custom bg-white shadow-sm">
+    <nav className="sticky top-0 z-50 border-b border-border-custom bg-white shadow-sm">
       <div className="flex items-center justify-between gap-2 px-3 py-3 sm:px-6 sm:py-4">
         {/* Left Side - Menu Button & Title */}
         <div className="flex items-center gap-4">
@@ -90,14 +97,11 @@ export default function Navbar({ title, breadcrumbs }) {
             {showUserMenu && (
               <div className="absolute right-0 mt-2 w-48 rounded-lg border border-border-custom bg-white shadow-lg">
                 <div className="space-y-1 p-2">
-                  <button className="w-full rounded-lg px-4 py-2 text-left text-sm font-medium text-text-primary hover:bg-background-custom">
-                    Profile
-                  </button>
-                  <button className="w-full rounded-lg px-4 py-2 text-left text-sm font-medium text-text-primary hover:bg-background-custom">
-                    Settings
-                  </button>
-                  <hr className="my-1 border-border-custom" />
-                  <button className="w-full rounded-lg px-4 py-2 text-left text-sm font-medium text-danger hover:bg-danger/10">
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center gap-2 rounded-lg px-4 py-2 text-left text-sm font-medium text-danger hover:bg-danger/10 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
                     Logout
                   </button>
                 </div>
