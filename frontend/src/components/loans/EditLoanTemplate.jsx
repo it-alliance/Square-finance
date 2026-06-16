@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, DollarSign, X } from 'lucide-react';
+import { ArrowLeft, DollarSign, X, User, Calendar, Clock } from 'lucide-react';
 import CreateLoanForm from '@/components/forms/CreateLoanForm';
 import { formatCurrency, formatDate } from '@/utils/formatting';
 import { generateEmiSchedule } from '@/utils/generateEmiSchedule';
@@ -116,6 +116,7 @@ const mapLoan = (d) => ({
   followUpDate: (d.status?.nextFollowUpDate || d.followUps?.[0]?.promisedDate || d.followUpDate)
     ? new Date(d.status?.nextFollowUpDate || d.followUps?.[0]?.promisedDate || d.followUpDate).toISOString().split('T')[0]
     : '',
+  createdBy: d.status?.createdBy || d.createdBy || 'System Admin',
 });
 
 export default function EditLoanTemplate({ loanType, loanId }) {
@@ -173,19 +174,60 @@ export default function EditLoanTemplate({ loanType, loanId }) {
 
   useEffect(() => {
     if (loan) {
-      setSchedule(
-        generateEmiSchedule(
-          loan.loanAmount,
-          loan.tenure,
-          loan.emiStartDate,
-          loan.id,
-          loan.loanType || loanType,
-          loan.interestRate
-        )
+      const baseSchedule = generateEmiSchedule(
+        loan.loanAmount,
+        loan.tenure,
+        loan.emiStartDate,
+        loan.id,
+        loan.loanType || loanType,
+        loan.interestRate
       );
+
+      // Merge actual payments recorded in the DB
+      let finalSchedule = baseSchedule;
+      if (loan.payments && loan.payments.length > 0) {
+        const paymentsCopy = loan.payments
+          .map(p => ({
+            amountPaid: Number(p.amountPaid || p.amount || 0),
+            date: p.date || p.paymentDate,
+            paymentMode: p.paymentMode || p.mode || 'Cash',
+          }))
+          .filter(p => p.amountPaid > 0);
+
+        let paymentIndex = 0;
+        finalSchedule = baseSchedule.map(emi => {
+          let remaining = emi.emiAmount;
+          const emiPayments = [];
+
+          while (paymentIndex < paymentsCopy.length && remaining > 0) {
+            const p = paymentsCopy[paymentIndex];
+            const used = Math.min(remaining, p.amountPaid);
+            emiPayments.push({ paymentDate: p.date, paymentMode: p.paymentMode, amount: used });
+            remaining -= used;
+            p.amountPaid -= used;
+            if (p.amountPaid <= 0) paymentIndex++;
+          }
+
+          const totalPaid = emiPayments.reduce((s, p) => s + p.amount, 0);
+          const paymentStatus =
+            totalPaid >= emi.emiAmount ? 'Paid' : totalPaid > 0 ? 'Partial' : 'Pending';
+
+          return {
+            ...emi,
+            payments: emiPayments,
+            totalPaid,
+            remainingAmount: Math.max(0, emi.emiAmount - totalPaid),
+            paymentStatus,
+            approvedBy: 'System Admin',
+            lastUpdated: emiPayments.length > 0 ? emiPayments[emiPayments.length - 1].paymentDate : '-',
+          };
+        });
+      }
+      setSchedule(finalSchedule);
+    } else {
+      setSchedule([]);
     }
   }, [loan, loanType]);
-
   /* ─── Modal form state ─── */
   const [modalPayments, setModalPayments] = useState([]);
   const [modalOverdues, setModalOverdues] = useState([]);
@@ -255,6 +297,50 @@ export default function EditLoanTemplate({ loanType, loanId }) {
     Pending: 'bg-danger/5 text-danger border-danger/20',
   };
 
+  const totalCollectedAmount = useMemo(() => {
+    return loan?.payments?.reduce((s, p) => s + Number(p.amountPaid || p.amount || 0), 0) || 0;
+  }, [loan]);
+
+  const upcomingDueDate = useMemo(() => {
+    if (!schedule || schedule.length === 0) return loan?.emiStartDate || '';
+    const upcoming = schedule.find(item => item.paymentStatus !== 'Paid');
+    return upcoming ? upcoming.dueDate : (schedule[0]?.dueDate || loan?.emiStartDate || '');
+  }, [schedule, loan]);
+
+  const derivedFinancials = useMemo(() => {
+    if (!loan) return { calculatedEMI: 0, totalInterest: 0, totalRepayable: 0 };
+    const principal = loan.loanAmount || 0;
+    const rate = loan.interestRate || 0;
+    const tenureVal = loan.tenure || 0;
+    const type = loan.loanType || loanType;
+
+    if (tenureVal <= 0) {
+      return { calculatedEMI: 0, totalInterest: 0, totalRepayable: 0 };
+    }
+
+    if (type === 'Daily' || type === 'Weekly' || type === 'Monthly') {
+      const interestAmountPerPeriod = principal * (rate / 100);
+      const totalInterest = tenureVal * interestAmountPerPeriod;
+      const totalRepayable = principal + totalInterest;
+      const calculatedEMI = Math.ceil(totalRepayable / tenureVal);
+      return { calculatedEMI, totalInterest, totalRepayable };
+    } else {
+      const monthlyRate = rate / 100 / 12;
+      const calculatedEMI =
+        monthlyRate > 0
+          ? (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureVal)) /
+            (Math.pow(1 + monthlyRate, tenureVal) - 1)
+          : 0;
+      const totalRepayable = calculatedEMI * tenureVal;
+      const totalInterest = totalRepayable - principal;
+      return { calculatedEMI, totalInterest, totalRepayable };
+    }
+  }, [loan, loanType]);
+
+  const calculatedEMI = derivedFinancials.calculatedEMI;
+  const totalRepayable = derivedFinancials.totalRepayable;
+  const totalInterest = derivedFinancials.totalInterest;
+
   if (loading) {
     return (
       <div className="flex h-[400px] items-center justify-center">
@@ -304,13 +390,17 @@ export default function EditLoanTemplate({ loanType, loanId }) {
                 {loan.loanNumber}
               </span>
             </div>
-            <span className="text-neutral/50 hidden sm:inline">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-text-secondary font-extrabold">Vehicle</span>
-              <span className="rounded-md border border-border-custom bg-background-custom px-2 py-1 text-[11px] font-black text-text-primary">
-                {loan.vehicleNumber}
-              </span>
-            </div>
+            {loan.vehicleNumber && loanType !== 'Daily' && loanType !== 'Weekly' && (
+              <>
+                <span className="text-neutral/50 hidden sm:inline">|</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-text-secondary font-extrabold">Vehicle</span>
+                  <span className="rounded-md border border-border-custom bg-background-custom px-2 py-1 text-[11px] font-black text-text-primary">
+                    {loan.vehicleNumber}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
@@ -337,6 +427,46 @@ export default function EditLoanTemplate({ loanType, loanId }) {
         </div>
       </div>
 
+      {/* Page Metadata Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-xl bg-background-custom border border-border-custom p-3.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary shadow-2xs mb-6">
+        <div className="flex items-center gap-2">
+          <User className="h-3.5 w-3.5 text-neutral shrink-0" />
+          <span>Created by:</span>
+          <span className="text-text-primary font-extrabold truncate">{loan.createdBy || 'System Admin'} ({loan.createdAt ? formatDateTime(loan.createdAt) : 'N/A'})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <User className="h-3.5 w-3.5 text-neutral shrink-0" />
+          <span>Last Updated:</span>
+          <span className="text-text-primary font-extrabold truncate">{loan.updatedBy || user?.name || 'System Admin'} ({loan.updatedAt ? formatDateTime(loan.updatedAt) : 'N/A'})</span>
+        </div>
+      </div>
+
+      {/* Financial Summary Ledger */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-5 rounded-2xl border border-border-custom bg-card-background shadow-sm mb-6">
+        <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
+          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">
+            {loanType === 'Weekly' ? 'Weekly EMI' : loanType === 'Daily' ? 'Daily EMI' : 'Monthly EMI'}
+          </p>
+          <p className="text-lg font-extrabold text-text-primary mt-2">{formatCurrency(loan.emiAmount || calculatedEMI)}</p>
+        </div>
+        <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
+          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Total Collected Amount</p>
+          <p className="text-lg font-extrabold text-success mt-2">{formatCurrency(totalCollectedAmount)}</p>
+        </div>
+        <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
+          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Total Expenses</p>
+          <p className="text-lg font-extrabold text-text-primary mt-2">{formatCurrency(0)}</p>
+        </div>
+        <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
+          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Total Interest Amount</p>
+          <p className="text-lg font-extrabold text-primary mt-2">+{formatCurrency(totalInterest)}</p>
+        </div>
+        <div className="rounded-xl border border-border-custom bg-background-custom/30 p-4.5 hover:bg-background-custom/60 transition-colors">
+          <p className="text-[9px] font-bold text-text-secondary uppercase tracking-wider leading-none">Remaining Principal Amount</p>
+          <p className="text-lg font-extrabold text-danger mt-2">{formatCurrency(Math.max(0, totalRepayable - totalCollectedAmount))}</p>
+        </div>
+      </div>
+
       <CreateLoanForm loan={loan} defaultLoanType={loanType} />
 
       {/* ─── EMI Payment Schedule Table ─── */}
@@ -347,7 +477,9 @@ export default function EditLoanTemplate({ loanType, loanId }) {
               <DollarSign className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-text-primary">EMI Payment Schedule</h2>
+              <h2 className="text-base font-bold text-text-primary">
+                {loanType === 'Weekly' ? 'Weekly' : loanType === 'Daily' ? 'Daily' : 'Monthly'} EMI Payment Schedule
+              </h2>
               <p className="text-[11px] font-semibold text-text-secondary mt-0.5">
                 Track and manage individual EMI payments
               </p>

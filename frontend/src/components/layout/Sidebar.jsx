@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useSidebarStore } from '@/store/sidebarStore';
-import { useAuthStore } from '@/store/authStore';
 import { MENU_ITEMS } from '@/utils/constants';
 import * as Icons from 'lucide-react';
 
@@ -12,8 +11,6 @@ export default function Sidebar() {
   const pathname = usePathname();
   const isOpen = useSidebarStore((state) => state.isOpen);
   const closeSidebar = useSidebarStore((state) => state.closeSidebar);
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
 
   const [expandedMenus, setExpandedMenus] = useState({});
 
@@ -33,11 +30,6 @@ export default function Sidebar() {
       ...prev,
       [menuId]: !prev[menuId],
     }));
-  };
-
-  const handleLogout = () => {
-    logout();
-    window.location.href = '/login';
   };
 
   return (
@@ -161,35 +153,6 @@ export default function Sidebar() {
             );
           })}
         </nav>
-
-        {/* User Profile Section */}
-        {user && (
-          <div className="border-t border-white/10 p-6">
-            <div className="mb-4 flex items-center gap-3">
-              <img
-                src={user.avatar}
-                alt={user.name || user.username || 'User'}
-                className="h-10 w-10 rounded-full"
-              />
-              <div className="flex-1 overflow-hidden">
-                <p className="truncate font-medium">{user.name || user.username || 'User'}</p>
-                <p className="truncate text-xs text-white/70">{user.email}</p>
-                {user.role && (
-                  <span className="mt-1 inline-flex rounded-md bg-white/20 px-2 py-0.5 text-[9px] font-extrabold text-white uppercase tracking-wider">
-                    {user.role}
-                  </span>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-danger px-4 py-2 text-sm font-medium hover:bg-danger-hover transition-colors"
-            >
-              <Icons.LogOut className="h-4 w-4" />
-              Logout
-            </button>
-          </div>
-        )}
       </aside>
     </>
   );
