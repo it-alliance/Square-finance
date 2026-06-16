@@ -65,7 +65,9 @@ const formatLoanResponse = (loan: any) => ({
       foreclosureDate: "",
       foreclosureAmount: 0
     }
-  }
+  },
+  payments: loan.payments || [],
+  followUps: loan.followUps || []
 });
 
 // Helper to calculate EMI
@@ -200,7 +202,7 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
 
     const existingLoan = await prisma.monthlyLoan.findUnique({
       where: { id },
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     if (!existingLoan || existingLoan.isDeleted) {
@@ -265,7 +267,7 @@ export const updateMonthlyLoan = async (req: Request, res: Response): Promise<vo
         
         nextFollowupDate: status?.nextFollowUpDate ? new Date(status.nextFollowUpDate) : existingLoan.nextFollowupDate,
       },
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     if (status?.clientResponse && status?.nextFollowUpDate) {
@@ -328,7 +330,7 @@ export const getMonthlyLoans = async (req: Request, res: Response): Promise<void
         skip,
         take,
         where,
-        include: { customer: true },
+        include: { customer: true, payments: true, followUps: true },
         orderBy: [
           { createdAt: 'desc' },
           { id: 'desc' }
@@ -453,7 +455,7 @@ export const exportMonthlyLoans = async (req: Request, res: Response): Promise<v
         take: CHUNK_SIZE,
         skip: cursor ? 1 : 0,
         where,
-        include: { customer: true },
+        include: { customer: true, payments: true, followUps: true },
         orderBy: [
           { createdAt: 'desc' },
           { id: 'desc' }
