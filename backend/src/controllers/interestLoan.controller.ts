@@ -37,7 +37,9 @@ const formatLoanResponse = (loan: any) => {
       clientResponse: loan.clientResponse || "",
       createdAt: loan.createdAt,
       updatedAt: loan.updatedAt
-    }
+    },
+    payments: loan.payments || [],
+    followUps: loan.followUps || []
   };
 };
 
@@ -89,7 +91,7 @@ export const createInterestLoan = async (req: Request, res: Response): Promise<v
         nextFollowupDate: status?.nextFollowUpDate ? new Date(status.nextFollowUpDate) : null,
         clientResponse: status?.clientResponse || ""
       },
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     res.status(201).json({ status: "success", message: "Interest loan created successfully", data: formatLoanResponse(loan) });
@@ -144,7 +146,7 @@ export const updateInterestLoan = async (req: Request, res: Response): Promise<v
     const updatedLoan = await prisma.interestLoan.update({
       where: { id },
       data: updateData,
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     res.status(200).json({ status: "success", message: "Interest loan updated successfully", data: formatLoanResponse(updatedLoan) });
@@ -184,7 +186,7 @@ export const getInterestLoans = async (req: Request, res: Response): Promise<voi
       take,
       skip,
       where,
-      include: { customer: true },
+      include: { customer: true, payments: true, followUps: true },
       orderBy: [
         { createdAt: 'desc' },
         { id: 'desc' }

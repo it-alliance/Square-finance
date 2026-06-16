@@ -51,7 +51,9 @@ const formatLoanResponse = (loan: any) => ({
       foreclosureDate: "",
       foreclosureAmount: 0
     }
-  }
+  },
+  payments: loan.payments || [],
+  followUps: loan.followUps || []
 });
 
 // Helper to calculate daily EMI based on a 365-day year
@@ -170,7 +172,7 @@ export const updateDailyLoan = async (req: Request, res: Response): Promise<void
 
     const existingLoan = await prisma.dailyLoan.findUnique({
       where: { id },
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     if (!existingLoan || existingLoan.isDeleted) {
@@ -222,7 +224,7 @@ export const updateDailyLoan = async (req: Request, res: Response): Promise<void
         
         nextFollowupDate: status?.nextFollowUpDate ? new Date(status.nextFollowUpDate) : existingLoan.nextFollowupDate,
       },
-      include: { customer: true }
+      include: { customer: true, payments: true, followUps: true }
     });
 
     if (status?.clientResponse && status?.nextFollowUpDate) {
@@ -275,7 +277,7 @@ export const getDailyLoans = async (req: Request, res: Response): Promise<void> 
       take,
       skip,
       where,
-      include: { customer: true },
+      include: { customer: true, payments: true, followUps: true },
       orderBy: [
         { createdAt: 'desc' },
         { id: 'desc' }
@@ -378,7 +380,7 @@ export const exportDailyLoans = async (req: Request, res: Response): Promise<voi
         take: CHUNK_SIZE,
         skip: cursor ? 1 : 0,
         where,
-        include: { customer: true },
+        include: { customer: true, payments: true, followUps: true },
         orderBy: [
           { createdAt: 'desc' },
           { id: 'desc' }
