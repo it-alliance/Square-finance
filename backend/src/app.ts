@@ -6,6 +6,7 @@ import monthlyLoanRoutes from './routes/monthlyLoan.routes';
 import weeklyLoanRoutes from './routes/weeklyLoan.routes';
 import dailyLoanRoutes from './routes/dailyLoan.routes';
 import interestLoanRoutes from './routes/interestLoan.routes';
+import paymentRoutes from './routes/payment.routes';
 
 const app = express();
 
@@ -17,6 +18,7 @@ app.use('/api/monthly-loans', monthlyLoanRoutes);
 app.use('/api/weekly-loans', weeklyLoanRoutes);
 app.use('/api/daily-loans', dailyLoanRoutes);
 app.use('/api/interest-loans', interestLoanRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.use(errorHandler);
 

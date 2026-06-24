@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 
 // Helper to format the response to match the exact blueprint
-const formatLoanResponse = (loan: any) => {
+export const formatLoanResponse = (loan: any) => {
   return {
     id: loan.id,
     customerDetails: {

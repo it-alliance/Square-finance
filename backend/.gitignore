@@ -42,3 +42,4 @@ test.sh
 stress-test*.ts
 update-postman*.ts
 Square_Finance.postman_collection.json
+validate-postman.js

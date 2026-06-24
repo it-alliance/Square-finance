@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/prisma';
 
 // Helper to format loan response universally into the nested structure
-const formatLoanResponse = (loan: any) => ({
+export const formatLoanResponse = (loan: any) => ({
   id: loan.id,
   customerDetails: {
     customerName: loan.customer?.name || '',
